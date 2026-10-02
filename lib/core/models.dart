@@ -147,11 +147,13 @@ class AccountQuota {
     if (provider == 'GPT') {
       for (final prefix in ['x-codex-primary', 'x-codex-secondary']) {
         final used = number(signals['$prefix-used-percent']);
+        final duration = number(signals['$prefix-window-minutes']);
+        if (duration != null && duration <= 0) continue;
         if (used != null) {
           windows.add(
             QuotaWindow(
               (100 - used).clamp(0, 100).toDouble(),
-              number(signals['$prefix-window-minutes']),
+              duration,
               resetFor(prefix),
             ),
           );
@@ -179,11 +181,13 @@ class AccountQuota {
       for (final raw in quota['windows']) {
         if (raw is! Map) continue;
         final value = number(raw['remaining_percent']);
+        final duration = number(raw['window_minutes']);
+        if (duration != null && duration <= 0) continue;
         if (value != null) {
           windows.add(
             QuotaWindow(
               value.clamp(0, 100).toDouble(),
-              number(raw['window_minutes']),
+              duration,
               timestamp(raw['reset_at']),
             ),
           );
@@ -238,6 +242,7 @@ class AccountQuota {
         if (group is! Map || group['buckets'] is! List) continue;
         for (final bucket in group['buckets']) {
           if (bucket is! Map) continue;
+          if (invalidWindow('${bucket['window'] ?? ''}')) continue;
           final fraction = number(
             bucket['remainingFraction'] ?? bucket['remaining_fraction'],
           );
@@ -310,11 +315,14 @@ class AccountQuota {
     resetAt: timestamp(json['resetAt']),
     observedAt: timestamp(json['observedAt']),
     reason: json['reason'] as String?,
-    windowMinutes: number(json['windowMinutes']),
+    windowMinutes: (number(json['windowMinutes']) ?? 0) > 0
+        ? number(json['windowMinutes'])
+        : null,
     supported: json['supported'] != false,
     periods: (json['periods'] is List ? json['periods'] as List : const [])
         .whereType<Map>()
         .map((p) => QuotaPeriod.fromJson(Json.from(p)))
+        .where((p) => !RegExp(r'^0(?:\.0+)? 分钟(?:窗口|限额)$').hasMatch(p.label))
         .toList(),
   );
 }

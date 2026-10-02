@@ -144,7 +144,8 @@ void main() {
       expect(find.text('已用'), findsOneWidget);
       expect(find.text('剩余'), findsOneWidget);
       expect(find.text('\$135.00'), findsOneWidget);
-      expect(find.text('Token 额度：服务未提供'), findsOneWidget);
+      expect(find.textContaining('Token 额度'), findsNothing);
+      expect(find.textContaining('服务未提供'), findsNothing);
     },
   );
 }

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'widget_setup.dart';
+import 'notification_settings.dart';
 import 'quota_period_view.dart';
 import '../core/quota_details.dart';
 import 'package:http/http.dart' as http;
@@ -92,9 +92,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (mounted) setState(() => snapshot = value);
     } catch (e) {
       if (mounted) {
-        setState(
-          () => error = e is AppError ? e.message : '本地安全存储或小组件缓存更新失败，请重试',
-        );
+        setState(() => error = e is AppError ? e.message : '本地存储或限额缓存更新失败，请重试');
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -177,7 +175,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
             const SizedBox(height: 16),
             const Text(
-              '桌面小组件读取最近一次刷新缓存。打开 App 或下拉刷新即可更新；暂不支持的供应商不显示在小组件中。',
+              '打开 App 或下拉刷新可更新限额；Android 可在设置中启用消耗提醒。',
               style: TextStyle(fontSize: 12, height: 1.7),
             ),
           ],
@@ -271,7 +269,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清除这台服务器？'),
-        content: const Text('移除本机保存的地址、密钥与缓存，并清空桌面小组件。'),
+        content: const Text('移除本机保存的地址、密钥与缓存，并关闭通知监测。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -403,10 +401,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                 ],
               ),
-              if (Platform.isAndroid) const WidgetSetupPanel(),
+              if (Platform.isAndroid)
+                NotificationSettingsPanel(storage: widget.storage),
               const SizedBox(height: 24),
               const Text(
-                '建议通过 Tailscale 或家庭 VPN 连接。管理密钥仅存于本机系统安全存储；桌面小组件不持有密钥。',
+                '建议通过 Tailscale 或家庭 VPN 连接。管理密钥仅存于本机系统安全存储；通知内容不包含密钥。',
                 style: TextStyle(fontSize: 12, height: 1.7),
               ),
             ],
@@ -554,27 +553,23 @@ class AccountsPage extends StatelessWidget {
                       style: const TextStyle(fontSize: 24),
                     ),
                   const SizedBox(height: 8),
-                  if (account.windowMinutes != null)
-                    Text(
-                      account.windowMinutes == 300
-                          ? '5 小时窗口'
-                          : '${account.windowMinutes!.round()} 分钟窗口',
-                    ),
-                  Text(
-                    account.resetAt == null
-                        ? '服务未提供重置时间'
-                        : '重置于 ${formatTime(account.resetAt!)}',
-                  ),
+                  if (account.periods.isEmpty &&
+                      (account.windowMinutes ?? 0) > 0)
+                    Text(windowLabel(account.windowMinutes)),
+                  if (account.periods.isEmpty && account.resetAt != null)
+                    Text('重置于 ${formatTime(account.resetAt!)}'),
                   if (account.observedAt != null)
                     Text(
                       '限额观测于 ${formatTime(account.observedAt!)}',
                       style: const TextStyle(fontSize: 12),
                     ),
-                  for (final period
-                      in account.periods.isEmpty
-                          ? [QuotaPeriod(label: '额度明细', end: account.resetAt)]
-                          : account.periods)
-                    QuotaPeriodView(period: period),
+                  for (final period in account.periods)
+                    QuotaPeriodView(
+                      period: period,
+                      showPercent:
+                          account.periods.length > 1 ||
+                          period.remainingPercent != account.remaining,
+                    ),
                 ],
               ),
             ),

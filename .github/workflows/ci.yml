@@ -35,6 +35,8 @@ jobs:
       - run: flutter build apk --release
         env:
           ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+      - run: ./gradlew :quota_platform:testReleaseUnitTest
+        working-directory: android
       - uses: actions/upload-artifact@v4
         with:
           name: cliproxy-quota-android
@@ -51,7 +53,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
-      - run: test -d build/ios/iphoneos/Runner.app/PlugIns/QuotaWidget.appex
+      - run: test ! -d build/ios/iphoneos/Runner.app/PlugIns/QuotaWidget.appex
       - run: ditto -c -k --keepParent build/ios/iphoneos/Runner.app build/ios/cliproxy-quota-ios-unsigned.zip
       - uses: actions/upload-artifact@v4
         with:

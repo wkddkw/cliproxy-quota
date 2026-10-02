@@ -5,12 +5,31 @@ double? quotaAmount(dynamic value) {
   return parsed != null && parsed >= 0 ? parsed : null;
 }
 
-String windowLabel(double? minutes) => switch (minutes) {
-  300 => '5 小时窗口',
-  1440 => '每日窗口',
-  10080 => '每周窗口',
-  null => '服务主窗口',
-  _ => '${minutes.round()} 分钟窗口',
+String windowLabel(double? minutes) {
+  if (minutes == null || minutes <= 0) return '主限额';
+  if (minutes == 300) return '5 小时限额';
+  if (minutes == 1440) return '每日限额';
+  if (minutes >= 10080 && minutes < 11520) return '每周限额';
+  if (minutes % 1440 == 0) return '${(minutes / 1440).round()} 天限额';
+  if (minutes >= 1440) {
+    return '${(minutes / 1440).floor()} 天 ${(minutes % 1440 / 60).round()} 小时限额';
+  }
+  if (minutes % 60 == 0) return '${(minutes / 60).round()} 小时限额';
+  if (minutes >= 60) {
+    return '${(minutes / 60).floor()} 小时 ${(minutes % 60).round()} 分钟限额';
+  }
+  return '${minutes.round()} 分钟限额';
+}
+
+bool invalidWindow(String value) => RegExp(
+  r'^0+(?:\.0+)?(?:m|h|d|s|分钟|小时|天|秒)?$',
+).hasMatch(value.trim().toLowerCase());
+String bucketWindowLabel(String value) => switch (value.toLowerCase()) {
+  '5h' || 'five_hour' || 'five-hour' || '300m' => '5 小时限额',
+  'weekly' || '7d' => '每周限额',
+  'daily' || '24h' || '1d' => '每日限额',
+  'monthly' || 'month' => '月度限额',
+  _ => '主限额',
 };
 
 class QuotaAmounts {
@@ -147,13 +166,14 @@ class QuotaPeriod {
         for (final raw in group['buckets']) {
           if (raw is! Map) continue;
           final bucket = Json.from(raw);
+          if (invalidWindow('${bucket['window'] ?? ''}')) continue;
           final fraction = number(
             bucket['remainingFraction'] ?? bucket['remaining_fraction'],
           );
           result.add(
             QuotaPeriod(
               label:
-                  '${group['displayName'] ?? group['display_name'] ?? '限额'} · ${bucket['window'] ?? '主窗口'}',
+                  '${group['displayName'] ?? group['display_name'] ?? '限额'} · ${bucketWindowLabel('${bucket['window'] ?? ''}')}',
               start: timestamp(bucket['startTime'] ?? bucket['start_time']),
               end: timestamp(bucket['resetTime'] ?? bucket['reset_time']),
               remainingPercent:

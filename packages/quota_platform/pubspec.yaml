@@ -1,0 +1,15 @@
+name: quota_platform
+description: Local Android quota cache and notification integration.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.wkddkw.quota_platform
+        pluginClass: QuotaPlatformPlugin

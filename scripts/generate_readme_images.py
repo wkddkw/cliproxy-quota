@@ -38,7 +38,7 @@ parts.append('<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" 
 parts.append('<g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">')
 rect(0, 0, 1400, 800, '#edf3ef', 20)
 text(45, 58, 'CLIProxy 限额', 30, weight=700)
-text(45, 88, '自己的服务 · 最低剩余 · 手机与桌面一眼可见', 16, '#536b60')
+text(45, 88, '自己的服务 · 最低剩余 · 手机查看 · 消耗提醒', 16, '#536b60')
 text(1110, 64, '界面示意 / 示例数据', 14, '#536b60')
 
 x = 45
@@ -80,7 +80,7 @@ rect(x + 18, 268, 262, 140, '#ffffff', 14)
 text(x + 32, 296, '每周限额', 16, weight=600)
 text(x + 32, 332, '该周期剩余 42%', 23, weight=600)
 text(x + 32, 362, '周期结束 / 重置：10-08 17:00', 11, '#536b60')
-text(x + 32, 389, 'Token 额度：服务未提供', 11, '#536b60')
+text(x + 32, 389, '仅显示接口实际提供的额度', 11, '#536b60')
 rect(x + 18, 429, 262, 186, '#ffffff', 14)
 text(x + 32, 459, '月度美元额度', 16, weight=600)
 text(x + 32, 486, '周期：10-01 至 11-01', 11, '#536b60')
@@ -94,23 +94,19 @@ text(x + 24, 647, '不同周期分开展示；绝对额度按接口返回', 10, 
 
 x = 1050
 rect(x, 122, 305, 575, '#dfeae2', 28)
-text(x + 22, 165, '手机桌面', 15, '#536b60')
-rect(x + 17, 206, 271, 277, '#f5f7f5', 24)
-text(x + 35, 238, 'CLIProxy 限额', 15, weight=600)
-for i, (name, symbol, count, percent) in enumerate([('GPT', 'G', 2, 5), ('Claude', '✳', 3, 60), ('Grok', '𝕏', 1, 42)]):
-    y = 275 + i * 60
-    circle(x + 48, y, symbol)
-    text(x + 75, y - 2, name, 13, weight=600)
-    text(x + 75, y + 15, f'{count} 个账号', 10, '#536b60')
-    rect(x + 75, y + 23, 118, 4, '#d9e8df', 2)
-    rect(x + 75, y + 23, max(3, 118 * percent / 100), 4, '#23846b', 2)
-    text(x + 219, y + 6, f'{percent}%', 24, weight=700)
-text(x + 35, 458, '更新于 10-02 12:00', 10, '#536b60')
-text(x + 22, 537, '只读缓存，不持有管理密钥', 14, weight=600)
-text(x + 22, 569, '不支持的供应商自动隐藏', 13, '#536b60')
-text(x + 22, 599, '行数随尺寸变化，更多内容进入 App', 11, '#536b60')
-text(x + 22, 629, 'iOS 刷新间隔由系统决定', 12, '#536b60')
-text(x, 735, '04  系统桌面小组件', 17, weight=600)
+text(x + 22, 165, 'Android 通知', 15, '#536b60')
+rect(x + 17, 206, 271, 145, '#f5f7f5', 24)
+text(x + 35, 238, 'GPT 限额消耗提醒', 15, weight=600)
+text(x + 35, 274, '剩余 35%', 24, weight=700)
+text(x + 35, 306, '较上次基准下降 5 个百分点', 12, '#536b60')
+rect(x + 17, 376, 271, 108, '#f5f7f5', 24)
+text(x + 35, 408, 'CLIProxy 限额概览', 15, weight=600)
+text(x + 35, 444, 'GPT 35% · Claude 60% · Grok 42%', 12)
+text(x + 22, 537, '默认 5%，可调整提醒阈值', 14, weight=600)
+text(x + 22, 569, '可以隐藏内容或关闭概览', 13, '#536b60')
+text(x + 22, 599, '后台约 15 分钟起，受系统调度影响', 11, '#536b60')
+text(x + 22, 629, '普通通知；流体云尚未接入', 12, '#536b60')
+text(x, 735, '04  消耗通知 / 示例效果', 17, weight=600)
 parts.append('</g></svg>')
 (output / 'app-preview.svg').write_text('\n'.join(parts))
 subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'app-preview.png'), str(output / 'app-preview.svg')], check=True)
@@ -122,7 +118,7 @@ flow = '''<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="240" view
 <rect x="35" y="50" width="280" height="130" rx="20" fill="white"/><text x="175" y="93" font-size="22" font-weight="600">你的 CLIProxyAPI</text><text x="175" y="125" font-size="15">v8 优先 · 404 回退 v0</text><text x="175" y="151" font-size="13" fill="#536b60">被动信号 / 已启用的限额插件</text>
 <rect x="385" y="50" width="280" height="130" rx="20" fill="white"/><text x="525" y="93" font-size="22" font-weight="600">手机 App</text><text x="525" y="125" font-size="15">刷新 · 归并 · 取最低剩余</text><text x="525" y="151" font-size="13" fill="#536b60">管理密钥保存在系统安全存储</text>
 <rect x="735" y="50" width="280" height="130" rx="20" fill="white"/><text x="875" y="93" font-size="22" font-weight="600">本机汇总缓存</text><text x="875" y="125" font-size="15">供应商 · 账号数 · 百分比</text><text x="875" y="151" font-size="13" fill="#536b60">不含密钥、邮箱或认证文件名</text>
-<rect x="1085" y="50" width="280" height="130" rx="20" fill="#23846b"/><text x="1225" y="93" font-size="22" font-weight="600" fill="white">系统桌面小组件</text><text x="1225" y="125" font-size="15" fill="white">只读缓存 · 点击进入 App</text><text x="1225" y="151" font-size="13" fill="#d9e8df">不发网络请求</text>
+<rect x="1085" y="50" width="280" height="130" rx="20" fill="#23846b"/><text x="1225" y="93" font-size="22" font-weight="600" fill="white">Android 通知</text><text x="1225" y="125" font-size="15" fill="white">阈值提醒 · 可隐藏内容</text><text x="1225" y="151" font-size="13" fill="#d9e8df">后台检查 · 系统调度</text>
 <g stroke="#23846b" stroke-width="3" marker-end="url(#arrow)"><path d="M325 115 H375"/><path d="M675 115 H725"/><path d="M1025 115 H1075"/></g>
 <text x="700" y="218" font-size="13" fill="#536b60">推荐通过 Tailscale 或家庭 VPN 连接；手机只请求自己的 CLIProxyAPI。</text>
 </g></svg>'''

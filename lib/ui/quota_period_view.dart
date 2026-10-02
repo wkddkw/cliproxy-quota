@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import '../core/quota_details.dart';
 
 class QuotaPeriodView extends StatelessWidget {
-  const QuotaPeriodView({super.key, required this.period});
+  const QuotaPeriodView({
+    super.key,
+    required this.period,
+    this.showPercent = true,
+  });
   final QuotaPeriod period;
+  final bool showPercent;
   String date(DateTime time) {
     final t = time.toLocal();
     String pad(int n) => '$n'.padLeft(2, '0');
@@ -24,16 +29,21 @@ class QuotaPeriodView extends StatelessWidget {
             '周期开始：${date(period.start!)}',
             style: const TextStyle(fontSize: 12),
           ),
-        Text(
-          period.end == null ? '周期结束：服务未提供' : '周期结束 / 重置：${date(period.end!)}',
-          style: const TextStyle(fontSize: 12),
-        ),
-        if (period.remainingPercent != null)
+        if (period.end != null)
+          Text(
+            '重置于 ${date(period.end!)}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        if (showPercent && period.remainingPercent != null)
           Text('该周期剩余 ${period.remainingPercent!.floor()}%'),
-        const SizedBox(height: 10),
-        AmountsView(title: 'Token 额度', values: period.tokens),
-        const SizedBox(height: 12),
-        AmountsView(title: '美元额度（USD）', values: period.usd, dollars: true),
+        if (period.tokens.hasData) ...[
+          const SizedBox(height: 10),
+          AmountsView(title: 'Token 额度', values: period.tokens),
+        ],
+        if (period.usd.hasData) ...[
+          const SizedBox(height: 10),
+          AmountsView(title: '美元额度（USD）', values: period.usd, dollars: true),
+        ],
       ],
     ),
   );
@@ -67,7 +77,7 @@ class AmountsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!values.hasData) {
-      return Text('$title：服务未提供', style: const TextStyle(fontSize: 12));
+      return const SizedBox.shrink();
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +90,7 @@ class AmountsView extends StatelessWidget {
               ('总额度', values.total),
               ('已用', values.used),
               ('剩余', values.remaining),
-            ])
+            ].where((field) => field.$2 != null))
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
