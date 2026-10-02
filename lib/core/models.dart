@@ -26,6 +26,7 @@ class AccountQuota {
     this.remaining,
     this.resetAt,
     this.observedAt,
+    this.queried = false,
     this.reason,
     this.windowMinutes,
     this.supported = true,
@@ -39,6 +40,7 @@ class AccountQuota {
   final String? reason;
   final double? windowMinutes;
   final bool supported;
+  final bool queried;
   final List<QuotaPeriod> periods;
 
   AccountQuota withPeriods(List<QuotaPeriod> value) => AccountQuota(
@@ -47,10 +49,24 @@ class AccountQuota {
     remaining: remaining,
     resetAt: resetAt,
     observedAt: observedAt,
+    queried: queried,
     reason: reason,
     windowMinutes: windowMinutes,
     supported: supported,
     periods: value,
+  );
+
+  AccountQuota withQueryFailure(String message) => AccountQuota(
+    provider: provider,
+    name: name,
+    remaining: remaining,
+    resetAt: resetAt,
+    observedAt: observedAt,
+    queried: queried,
+    windowMinutes: windowMinutes,
+    supported: true,
+    periods: periods,
+    reason: '$message${remaining == null ? '' : '，显示旧数据'}',
   );
 
   AccountQuota withBillingDetails(AccountQuota? monthly) {
@@ -106,6 +122,7 @@ class AccountQuota {
       remaining: remaining,
       resetAt: end,
       observedAt: DateTime.now().toUtc(),
+      queried: true,
       supported: true,
       periods: QuotaPeriod.fromGrok(config),
       windowMinutes: start != null && end != null && end.isAfter(start)
@@ -289,6 +306,7 @@ class AccountQuota {
       remaining: chosen?.remaining,
       resetAt: chosen?.resetAt,
       observedAt: chosen == null ? observedAt : DateTime.now().toUtc(),
+      queried: chosen == null ? queried : true,
       windowMinutes: chosen?.minutes,
       reason: chosen != null
           ? null
@@ -303,6 +321,7 @@ class AccountQuota {
     'remaining': remaining,
     'resetAt': resetAt?.toIso8601String(),
     'observedAt': observedAt?.toIso8601String(),
+    'queried': queried,
     'reason': reason,
     'windowMinutes': windowMinutes,
     'supported': supported,
@@ -314,6 +333,7 @@ class AccountQuota {
     remaining: number(json['remaining']),
     resetAt: timestamp(json['resetAt']),
     observedAt: timestamp(json['observedAt']),
+    queried: json['queried'] == true,
     reason: json['reason'] as String?,
     windowMinutes: (number(json['windowMinutes']) ?? 0) > 0
         ? number(json['windowMinutes'])

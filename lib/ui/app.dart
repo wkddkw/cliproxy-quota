@@ -560,7 +560,7 @@ class AccountsPage extends StatelessWidget {
                     Text('重置于 ${formatTime(account.resetAt!)}'),
                   if (account.observedAt != null)
                     Text(
-                      '限额观测于 ${formatTime(account.observedAt!)}',
+                      '${account.queried ? '额度查询于' : '服务器记录于'} ${formatTime(account.observedAt!)}',
                       style: const TextStyle(fontSize: 12),
                     ),
                   for (final period in account.periods)

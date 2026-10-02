@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'models.dart';
+import 'live_quota.dart';
 
 class ConnectionSettings {
   const ConnectionSettings({
@@ -114,10 +115,7 @@ class ManagementApi {
           List.generate(end - start, (offset) async {
             final index = start + offset;
             final file = files[index];
-            if (file['disabled'] == true ||
-                file['status'] == 'disabled' ||
-                file['unavailable'] == true ||
-                file['status'] == 'error') {
+            if (file['disabled'] == true || file['status'] == 'disabled') {
               return;
             }
             final rawProvider = '${file['provider'] ?? file['type'] ?? ''}'
@@ -127,7 +125,28 @@ class ManagementApi {
                   (p) => '${p['quota_provider']}'.toLowerCase() == rawProvider,
                 )
                 .firstOrNull;
+            final builtin = rawProvider == 'codex' || rawProvider == 'claude';
+            if (!builtin &&
+                (file['unavailable'] == true || file['status'] == 'error')) {
+              return;
+            }
             if ('${file['auth_index'] ?? file['authIndex'] ?? ''}'.isEmpty) {
+              if (builtin) {
+                accounts[index] = accounts[index].withQueryFailure(
+                  '无法主动查询 · 缺少认证查询索引',
+                );
+              }
+              return;
+            }
+            if (builtin) {
+              accounts[index] = await _oauthQuota(
+                base,
+                prefix,
+                key,
+                file,
+                accounts[index],
+                rawProvider,
+              );
               return;
             }
             if (plugin == null) {
@@ -195,6 +214,85 @@ class ManagementApi {
       throw const AppError('网络连接失败，请检查服务器地址及 HTTPS 证书');
     } on FormatException {
       throw const AppError('接口返回的不是有效 JSON，请检查完整地址');
+    }
+  }
+
+  Future<AccountQuota> _oauthQuota(
+    Uri base,
+    String prefix,
+    String key,
+    Json file,
+    AccountQuota account,
+    String provider,
+  ) async {
+    final codex = provider == 'codex';
+    final header = <String, String>{
+      'Authorization': 'Bearer \$TOKEN\$',
+      'Content-Type': 'application/json',
+      'User-Agent': codex
+          ? 'codex-tui/0.149.1 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.149.1)'
+          : 'claude-cli/2.1.280 (external, cli)',
+      if (!codex) 'anthropic-beta': 'oauth-2025-04-20',
+    };
+    if (codex) {
+      for (final row in [
+        file,
+        file['id_token'],
+        file['metadata'],
+        file['attributes'],
+      ]) {
+        if (row is! Map) continue;
+        final claims = row['https://api.openai.com/auth'];
+        final id =
+            row['chatgpt_account_id'] ??
+            row['account_id'] ??
+            (claims is Map ? claims['chatgpt_account_id'] : null);
+        if (id != null && '$id'.trim().isNotEmpty) {
+          header['Chatgpt-Account-Id'] = '$id';
+          break;
+        }
+      }
+    }
+    try {
+      final response = await _send(
+        base.replace(
+          path: prefix == '/v8/management'
+              ? '$prefix/requests/api-call'
+              : '$prefix/api-call',
+        ),
+        key,
+        method: 'POST',
+        body: {
+          'authIndex': '${file['auth_index'] ?? file['authIndex']}',
+          'method': 'GET',
+          'url': codex
+              ? 'https://chatgpt.com/backend-api/wham/usage'
+              : 'https://api.anthropic.com/api/oauth/usage',
+          'header': header,
+        },
+      );
+      if (response.statusCode != 200) {
+        return account.withQueryFailure(
+          '主动查询失败（管理接口 HTTP ${response.statusCode}）',
+        );
+      }
+      final envelope = jsonDecode(utf8.decode(response.bodyBytes));
+      if (envelope is! Map) return account.withQueryFailure('主动查询失败 · 返回格式不正确');
+      final status = number(envelope['status_code'])?.toInt();
+      if (status == null || status < 200 || status >= 300) {
+        return account.withQueryFailure(
+          status == 401
+              ? '主动查询失败 · 认证失效（401）'
+              : '主动查询失败（供应商 HTTP ${status ?? '未知'}）',
+        );
+      }
+      var payload = envelope['body'];
+      if (payload is String) payload = jsonDecode(payload);
+      if (payload is! Map) return account.withQueryFailure('主动查询失败 · 返回格式不正确');
+      return liveQuota(account, Json.from(payload), DateTime.now().toUtc()) ??
+          account.withQueryFailure('主动查询未返回有效限额');
+    } catch (_) {
+      return account.withQueryFailure('主动查询失败 · 网络或返回格式异常');
     }
   }
 
