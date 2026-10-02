@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800">
+<g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="1400" height="800" rx="20" fill="#edf3ef"/>
+<text x="45" y="58" font-size="30" fill="#163c30" font-weight="700">CLIProxy 限额</text>
+<text x="45" y="88" font-size="16" fill="#536b60" font-weight="400">自己的服务 · 最低剩余 · 手机与桌面一眼可见</text>
+<text x="1110" y="64" font-size="14" fill="#536b60" font-weight="400">界面示意 / 示例数据</text>
+<rect x="45" y="122" width="298" height="575" rx="34" fill="#163c30"/>
+<rect x="52" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
+<rect x="152" y="138" width="84" height="19" rx="10" fill="#163c30"/>
+<text x="70" y="152" font-size="10" fill="#163c30" font-weight="600">9:41</text>
+<text x="69" y="197" font-size="16" fill="#163c30" font-weight="600">连接服务器</text>
+<rect x="155" y="675" width="78" height="4" rx="2" fill="#163c30"/>
+<text x="45" y="735" font-size="17" fill="#163c30" font-weight="600">01  连接设置</text>
+<text x="69" y="252" font-size="28" fill="#163c30" font-weight="700">你的服务，</text>
+<text x="69" y="291" font-size="28" fill="#163c30" font-weight="700">随手可见。</text>
+<text x="69" y="323" font-size="12" fill="#536b60" font-weight="400">连接已经运行的 CLIProxyAPI</text>
+<rect x="69" y="355" width="250" height="60" rx="14" fill="#ffffff" stroke="#b5c9bd"/>
+<text x="81" y="376" font-size="11" fill="#536b60" font-weight="400">服务器</text>
+<text x="81" y="399" font-size="16" fill="#163c30" font-weight="400">100.64.0.10</text>
+<rect x="69" y="437" width="250" height="60" rx="14" fill="#ffffff" stroke="#b5c9bd"/>
+<text x="81" y="458" font-size="11" fill="#536b60" font-weight="400">管理密钥</text>
+<text x="81" y="481" font-size="16" fill="#163c30" font-weight="400">••••••••••••</text>
+<rect x="69" y="529" width="250" height="47" rx="24" fill="#23846b"/>
+<text x="152" y="559" font-size="14" fill="#ffffff" font-weight="600">保存并连接</text>
+<text x="69" y="615" font-size="14" fill="#163c30" font-weight="400">更多  ⌄</text>
+<text x="69" y="652" font-size="11" fill="#536b60" font-weight="400">端口与完整地址在「更多」中设置</text>
+<rect x="380" y="122" width="298" height="575" rx="34" fill="#163c30"/>
+<rect x="387" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
+<rect x="487" y="138" width="84" height="19" rx="10" fill="#163c30"/>
+<text x="405" y="152" font-size="10" fill="#163c30" font-weight="600">9:41</text>
+<text x="404" y="197" font-size="16" fill="#163c30" font-weight="600">更新于 10-02 12:00</text>
+<rect x="490" y="675" width="78" height="4" rx="2" fill="#163c30"/>
+<text x="380" y="735" font-size="17" fill="#163c30" font-weight="600">02  供应商总览</text>
+<text x="404" y="247" font-size="24" fill="#163c30" font-weight="700">剩余，心中有数。</text>
+<text x="404" y="276" font-size="11" fill="#536b60" font-weight="400">按供应商查看 · 多账号取最低剩余</text>
+<rect x="398" y="299" width="262" height="77" rx="14" fill="#ffffff"/>
+<circle cx="426" cy="328" r="18" fill="#d9e8df"/>
+<text x="426" y="335" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">G</text>
+<text x="455" y="324" font-size="16" fill="#163c30" font-weight="600">GPT</text>
+<text x="455" y="343" font-size="10" fill="#536b60" font-weight="400">2 个账号</text>
+<text x="589" y="335" font-size="23" fill="#163c30" font-weight="700">5%</text>
+<rect x="406" y="358" width="245" height="5" rx="3" fill="#d9e8df"/>
+<rect x="406" y="358" width="12.25" height="5" rx="3" fill="#a94438"/>
+<rect x="398" y="385" width="262" height="77" rx="14" fill="#ffffff"/>
+<circle cx="426" cy="414" r="18" fill="#d9e8df"/>
+<text x="426" y="421" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">✳</text>
+<text x="455" y="410" font-size="16" fill="#163c30" font-weight="600">Claude</text>
+<text x="455" y="429" font-size="10" fill="#536b60" font-weight="400">3 个账号</text>
+<text x="589" y="421" font-size="23" fill="#163c30" font-weight="700">60%</text>
+<rect x="406" y="444" width="245" height="5" rx="3" fill="#d9e8df"/>
+<rect x="406" y="444" width="147.0" height="5" rx="3" fill="#23846b"/>
+<rect x="398" y="471" width="262" height="77" rx="14" fill="#ffffff"/>
+<circle cx="426" cy="500" r="18" fill="#d9e8df"/>
+<text x="426" y="507" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">𝕏</text>
+<text x="455" y="496" font-size="16" fill="#163c30" font-weight="600">Grok</text>
+<text x="455" y="515" font-size="10" fill="#536b60" font-weight="400">1 个账号</text>
+<text x="589" y="507" font-size="23" fill="#163c30" font-weight="700">42%</text>
+<rect x="406" y="530" width="245" height="5" rx="3" fill="#d9e8df"/>
+<rect x="406" y="530" width="102.9" height="5" rx="3" fill="#23846b"/>
+<rect x="398" y="557" width="262" height="77" rx="14" fill="#ffffff"/>
+<circle cx="426" cy="586" r="18" fill="#d9e8df"/>
+<text x="426" y="593" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">O</text>
+<text x="455" y="582" font-size="16" fill="#163c30" font-weight="600">Other</text>
+<text x="455" y="601" font-size="10" fill="#536b60" font-weight="400">1 个账号</text>
+<text x="589" y="593" font-size="23" fill="#163c30" font-weight="700">—</text>
+<rect x="406" y="616" width="245" height="5" rx="3" fill="#d9e8df"/>
+<text x="456" y="629" font-size="9" fill="#a94438" font-weight="400">暂不支持</text>
+<text x="404" y="660" font-size="11" fill="#536b60" font-weight="400">下拉刷新 · 点供应商查看账号</text>
+<rect x="715" y="122" width="298" height="575" rx="34" fill="#163c30"/>
+<rect x="722" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
+<rect x="822" y="138" width="84" height="19" rx="10" fill="#163c30"/>
+<text x="740" y="152" font-size="10" fill="#163c30" font-weight="600">9:41</text>
+<text x="739" y="197" font-size="16" fill="#163c30" font-weight="600">GPT</text>
+<rect x="825" y="675" width="78" height="4" rx="2" fill="#163c30"/>
+<text x="715" y="735" font-size="17" fill="#163c30" font-weight="600">03  认证文件明细</text>
+<text x="739" y="245" font-size="13" fill="#536b60" font-weight="400">2 个认证文件</text>
+<rect x="733" y="266" width="262" height="150" rx="14" fill="#ffffff"/>
+<text x="747" y="296" font-size="12" fill="#163c30" font-weight="600">account-a@example.invalid</text>
+<text x="747" y="335" font-size="26" fill="#163c30" font-weight="600">剩余 85%</text>
+<text x="747" y="365" font-size="12" fill="#163c30" font-weight="400">5 小时窗口</text>
+<text x="747" y="389" font-size="12" fill="#536b60" font-weight="400">重置于 10-02 17:00</text>
+<rect x="733" y="431" width="262" height="150" rx="14" fill="#ffffff"/>
+<text x="747" y="461" font-size="12" fill="#163c30" font-weight="600">account-b@example.invalid</text>
+<text x="747" y="500" font-size="26" fill="#163c30" font-weight="600">剩余 5%</text>
+<text x="747" y="530" font-size="12" fill="#163c30" font-weight="400">5 小时窗口</text>
+<text x="747" y="554" font-size="12" fill="#536b60" font-weight="400">重置于 10-02 17:00</text>
+<text x="739" y="636" font-size="11" fill="#536b60" font-weight="400">禁用、401 和探测失败直接显示原因</text>
+<text x="739" y="659" font-size="11" fill="#536b60" font-weight="400">仅查看，账号操作仍留在服务端</text>
+<rect x="1050" y="122" width="305" height="575" rx="28" fill="#dfeae2"/>
+<text x="1072" y="165" font-size="15" fill="#536b60" font-weight="400">手机桌面</text>
+<rect x="1067" y="206" width="271" height="277" rx="24" fill="#f5f7f5"/>
+<text x="1085" y="238" font-size="15" fill="#163c30" font-weight="600">CLIProxy 限额</text>
+<circle cx="1098" cy="275" r="18" fill="#d9e8df"/>
+<text x="1098" y="282" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">G</text>
+<text x="1125" y="273" font-size="13" fill="#163c30" font-weight="600">GPT</text>
+<text x="1125" y="290" font-size="10" fill="#536b60" font-weight="400">2 个账号</text>
+<rect x="1125" y="298" width="118" height="4" rx="2" fill="#d9e8df"/>
+<rect x="1125" y="298" width="5.9" height="4" rx="2" fill="#23846b"/>
+<text x="1269" y="281" font-size="24" fill="#163c30" font-weight="700">5%</text>
+<circle cx="1098" cy="335" r="18" fill="#d9e8df"/>
+<text x="1098" y="342" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">✳</text>
+<text x="1125" y="333" font-size="13" fill="#163c30" font-weight="600">Claude</text>
+<text x="1125" y="350" font-size="10" fill="#536b60" font-weight="400">3 个账号</text>
+<rect x="1125" y="358" width="118" height="4" rx="2" fill="#d9e8df"/>
+<rect x="1125" y="358" width="70.8" height="4" rx="2" fill="#23846b"/>
+<text x="1269" y="341" font-size="24" fill="#163c30" font-weight="700">60%</text>
+<circle cx="1098" cy="395" r="18" fill="#d9e8df"/>
+<text x="1098" y="402" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">𝕏</text>
+<text x="1125" y="393" font-size="13" fill="#163c30" font-weight="600">Grok</text>
+<text x="1125" y="410" font-size="10" fill="#536b60" font-weight="400">1 个账号</text>
+<rect x="1125" y="418" width="118" height="4" rx="2" fill="#d9e8df"/>
+<rect x="1125" y="418" width="49.56" height="4" rx="2" fill="#23846b"/>
+<text x="1269" y="401" font-size="24" fill="#163c30" font-weight="700">42%</text>
+<text x="1085" y="458" font-size="10" fill="#536b60" font-weight="400">更新于 10-02 12:00</text>
+<text x="1072" y="537" font-size="14" fill="#163c30" font-weight="600">只读缓存，不持有管理密钥</text>
+<text x="1072" y="569" font-size="13" fill="#536b60" font-weight="400">不支持的供应商自动隐藏</text>
+<text x="1072" y="599" font-size="11" fill="#536b60" font-weight="400">行数随尺寸变化，更多内容进入 App</text>
+<text x="1072" y="629" font-size="12" fill="#536b60" font-weight="400">iOS 刷新间隔由系统决定</text>
+<text x="1050" y="735" font-size="17" fill="#163c30" font-weight="600">04  系统桌面小组件</text>
+</g></svg>

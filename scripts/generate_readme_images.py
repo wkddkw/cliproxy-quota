@@ -1,0 +1,117 @@
+"""Generate documentation illustrations (sample data, no real credentials)."""
+from html import escape
+from pathlib import Path
+import subprocess
+
+root = Path(__file__).resolve().parents[1]
+output = root / 'docs/images'
+output.mkdir(parents=True, exist_ok=True)
+parts = []
+
+def rect(x, y, w, h, color, radius=0, stroke=None):
+    parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}" fill="{color}"' + (f' stroke="{stroke}"' if stroke else '') + '/>')
+
+def text(x, y, value, size=15, color='#163c30', weight=400):
+    parts.append(f'<text x="{x}" y="{y}" font-size="{size}" fill="{color}" font-weight="{weight}">{escape(value)}</text>')
+
+def circle(x, y, symbol):
+    parts.append(f'<circle cx="{x}" cy="{y}" r="18" fill="#d9e8df"/>')
+    parts.append(f'<text x="{x}" y="{y + 7}" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">{escape(symbol)}</text>')
+
+def phone(x, title, index):
+    rect(x, 122, 298, 575, '#163c30', 34)
+    rect(x + 7, 129, 284, 561, '#f5f7f5', 28)
+    rect(x + 107, 138, 84, 19, '#163c30', 10)
+    text(x + 25, 152, '9:41', 10, weight=600)
+    text(x + 24, 197, title, 16, weight=600)
+    rect(x + 110, 675, 78, 4, '#163c30', 2)
+    caption = {'01': '连接设置', '02': '供应商总览', '03': '认证文件明细'}[index]
+    text(x, 735, f'{index}  {caption}', 17, weight=600)
+
+parts.append('<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800">')
+parts.append('<g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">')
+rect(0, 0, 1400, 800, '#edf3ef', 20)
+text(45, 58, 'CLIProxy 限额', 30, weight=700)
+text(45, 88, '自己的服务 · 最低剩余 · 手机与桌面一眼可见', 16, '#536b60')
+text(1110, 64, '界面示意 / 示例数据', 14, '#536b60')
+
+x = 45
+phone(x, '连接服务器', '01')
+text(x + 24, 252, '你的服务，', 28, weight=700)
+text(x + 24, 291, '随手可见。', 28, weight=700)
+text(x + 24, 323, '连接已经运行的 CLIProxyAPI', 12, '#536b60')
+for y, label, value in [(355, '服务器', '100.64.0.10'), (437, '管理密钥', '••••••••••••')]:
+    rect(x + 24, y, 250, 60, '#ffffff', 14, '#b5c9bd')
+    text(x + 36, y + 21, label, 11, '#536b60')
+    text(x + 36, y + 44, value, 16)
+rect(x + 24, 529, 250, 47, '#23846b', 24)
+text(x + 107, 559, '保存并连接', 14, '#ffffff', 600)
+text(x + 24, 615, '更多  ⌄', 14)
+text(x + 24, 652, '端口与完整地址在「更多」中设置', 11, '#536b60')
+
+x = 380
+phone(x, '更新于 10-02 12:00', '02')
+text(x + 24, 247, '剩余，心中有数。', 24, weight=700)
+text(x + 24, 276, '按供应商查看 · 多账号取最低剩余', 11, '#536b60')
+for i, (name, symbol, count, percent) in enumerate([('GPT', 'G', 2, 5), ('Claude', '✳', 3, 60), ('Grok', '𝕏', 1, 42), ('Other', 'O', 1, None)]):
+    y = 299 + i * 86
+    rect(x + 18, y, 262, 77, '#ffffff', 14)
+    circle(x + 46, y + 29, symbol)
+    text(x + 75, y + 25, name, 16, weight=600)
+    text(x + 75, y + 44, f'{count} 个账号', 10, '#536b60')
+    text(x + 209, y + 36, '—' if percent is None else f'{percent}%', 23, weight=700)
+    rect(x + 26, y + 59, 245, 5, '#d9e8df', 3)
+    if percent is not None:
+        rect(x + 26, y + 59, max(3, 245 * percent / 100), 5, '#a94438' if percent <= 15 else '#23846b', 3)
+    else:
+        text(x + 76, y + 72, '暂不支持', 9, '#a94438')
+text(x + 24, 660, '下拉刷新 · 点供应商查看账号', 11, '#536b60')
+
+x = 715
+phone(x, 'GPT', '03')
+text(x + 24, 245, '2 个认证文件', 13, '#536b60')
+for y, email, percent in [(266, 'account-a@example.invalid', 85), (431, 'account-b@example.invalid', 5)]:
+    rect(x + 18, y, 262, 150, '#ffffff', 14)
+    text(x + 32, y + 30, email, 12, weight=600)
+    text(x + 32, y + 69, f'剩余 {percent}%', 26, weight=600)
+    text(x + 32, y + 99, '5 小时窗口', 12)
+    text(x + 32, y + 123, '重置于 10-02 17:00', 12, '#536b60')
+text(x + 24, 636, '禁用、401 和探测失败直接显示原因', 11, '#536b60')
+text(x + 24, 659, '仅查看，账号操作仍留在服务端', 11, '#536b60')
+
+x = 1050
+rect(x, 122, 305, 575, '#dfeae2', 28)
+text(x + 22, 165, '手机桌面', 15, '#536b60')
+rect(x + 17, 206, 271, 277, '#f5f7f5', 24)
+text(x + 35, 238, 'CLIProxy 限额', 15, weight=600)
+for i, (name, symbol, count, percent) in enumerate([('GPT', 'G', 2, 5), ('Claude', '✳', 3, 60), ('Grok', '𝕏', 1, 42)]):
+    y = 275 + i * 60
+    circle(x + 48, y, symbol)
+    text(x + 75, y - 2, name, 13, weight=600)
+    text(x + 75, y + 15, f'{count} 个账号', 10, '#536b60')
+    rect(x + 75, y + 23, 118, 4, '#d9e8df', 2)
+    rect(x + 75, y + 23, max(3, 118 * percent / 100), 4, '#23846b', 2)
+    text(x + 219, y + 6, f'{percent}%', 24, weight=700)
+text(x + 35, 458, '更新于 10-02 12:00', 10, '#536b60')
+text(x + 22, 537, '只读缓存，不持有管理密钥', 14, weight=600)
+text(x + 22, 569, '不支持的供应商自动隐藏', 13, '#536b60')
+text(x + 22, 599, '行数随尺寸变化，更多内容进入 App', 11, '#536b60')
+text(x + 22, 629, 'iOS 刷新间隔由系统决定', 12, '#536b60')
+text(x, 735, '04  系统桌面小组件', 17, weight=600)
+parts.append('</g></svg>')
+(output / 'app-preview.svg').write_text('\n'.join(parts))
+subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'app-preview.png'), str(output / 'app-preview.svg')], check=True)
+
+flow = '''<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="240" viewBox="0 0 1400 240">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#23846b"/></marker></defs>
+<rect width="1400" height="240" rx="20" fill="#edf3ef"/>
+<g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif" fill="#163c30" text-anchor="middle">
+<rect x="35" y="50" width="280" height="130" rx="20" fill="white"/><text x="175" y="93" font-size="22" font-weight="600">你的 CLIProxyAPI</text><text x="175" y="125" font-size="15">v8 优先 · 404 回退 v0</text><text x="175" y="151" font-size="13" fill="#536b60">被动信号 / 已启用的限额插件</text>
+<rect x="385" y="50" width="280" height="130" rx="20" fill="white"/><text x="525" y="93" font-size="22" font-weight="600">手机 App</text><text x="525" y="125" font-size="15">刷新 · 归并 · 取最低剩余</text><text x="525" y="151" font-size="13" fill="#536b60">管理密钥保存在系统安全存储</text>
+<rect x="735" y="50" width="280" height="130" rx="20" fill="white"/><text x="875" y="93" font-size="22" font-weight="600">本机汇总缓存</text><text x="875" y="125" font-size="15">供应商 · 账号数 · 百分比</text><text x="875" y="151" font-size="13" fill="#536b60">不含密钥、邮箱或认证文件名</text>
+<rect x="1085" y="50" width="280" height="130" rx="20" fill="#23846b"/><text x="1225" y="93" font-size="22" font-weight="600" fill="white">系统桌面小组件</text><text x="1225" y="125" font-size="15" fill="white">只读缓存 · 点击进入 App</text><text x="1225" y="151" font-size="13" fill="#d9e8df">不发网络请求</text>
+<g stroke="#23846b" stroke-width="3" marker-end="url(#arrow)"><path d="M325 115 H375"/><path d="M675 115 H725"/><path d="M1025 115 H1075"/></g>
+<text x="700" y="218" font-size="13" fill="#536b60">推荐通过 Tailscale 或家庭 VPN 连接；手机只请求自己的 CLIProxyAPI。</text>
+</g></svg>'''
+(output / 'data-flow.svg').write_text(flow)
+subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'data-flow.png'), str(output / 'data-flow.svg')], check=True)

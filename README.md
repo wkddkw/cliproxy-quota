@@ -1,6 +1,18 @@
 # CLIProxy 限额
 
+[![Build and test](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml/badge.svg)](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml)
+
 只读的 CLIProxyAPI 手机 App，支持 Android、iPhone 和系统桌面小组件。按供应商归并账号，显示最低剩余额度；点击供应商查看认证文件明细。
+
+![设置、供应商总览、认证文件明细与桌面小组件示意](docs/images/app-preview.png)
+
+*界面示意，图中为示例数据；系统桌面小组件的布局和行数会随平台与尺寸变化。*
+
+**[下载 Android 预览版](https://github.com/wkddkw/cliproxy-quota/releases/tag/v0.1.0) · [查看构建记录](https://github.com/wkddkw/cliproxy-quota/actions) · [接口适配说明](docs/api-contract.md)**
+
+## 数据如何流动
+
+![CLIProxyAPI 到手机 App、本机汇总缓存与桌面小组件的数据流](docs/images/data-flow.png)
 
 ## 使用
 
