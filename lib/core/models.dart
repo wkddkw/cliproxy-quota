@@ -89,16 +89,12 @@ class AccountQuota {
         : null;
     final start = timestamp(
       weekly
-          ? periodMap['start'] ??
-                config['billingPeriodStart'] ??
-                config['billing_period_start']
+          ? periodMap['start']
           : config['billingPeriodStart'] ?? config['billing_period_start'],
     );
     final end = timestamp(
       weekly
-          ? periodMap['end'] ??
-                config['billingPeriodEnd'] ??
-                config['billing_period_end']
+          ? periodMap['end']
           : config['billingPeriodEnd'] ?? config['billing_period_end'],
     );
     final remaining = percent != null && percent >= 0

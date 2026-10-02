@@ -5,6 +5,29 @@ import 'package:cliproxy_quota/core/quota_details.dart';
 import 'package:cliproxy_quota/ui/quota_period_view.dart';
 
 void main() {
+  test(
+    'weekly percentage keeps its cycle while monthly response supplies USD',
+    () {
+      const account = AccountQuota(provider: 'Grok', name: 'fixture');
+      final weekly = account.withGrokBilling({
+        'creditUsagePercent': 37,
+        'monthlyLimit': {'val': 0},
+        'used': {'val': 0},
+        'billingPeriodEnd': '2026-11-01T00:00:00Z',
+      })!;
+      final monthly = account.withGrokBilling({
+        'monthlyLimit': {'val': 15000},
+        'used': {'val': 1500},
+        'billingPeriodEnd': '2026-11-01T00:00:00Z',
+      })!;
+      final merged = weekly.withBillingDetails(monthly);
+      expect(merged.remaining, 63);
+      expect(merged.resetAt, isNull);
+      expect(merged.periods.first.usd.hasData, false);
+      expect(merged.periods.last.usd.remaining, 135);
+      expect(merged.periods.last.end, DateTime.utc(2026, 11, 1));
+    },
+  );
   test('remaining token amount derives only from explicit total and used', () {
     final value = QuotaAmounts.values(total: 1000000, used: 250000);
     expect(value.remaining, 750000);
