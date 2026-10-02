@@ -40,6 +40,14 @@ struct QuotaWidgetView: View {
     @Environment(\.widgetFamily) var family
     let entry: QuotaEntry
     private var capacity: Int { family == .systemSmall ? 1 : family == .systemLarge ? 5 : 2 }
+    private func logoName(_ name: String) -> String? {
+        switch name {
+        case "GPT": return "provider_gpt"
+        case "Claude": return "provider_claude"
+        case "Grok": return "provider_grok"
+        default: return nil
+        }
+    }
     private var updated: String {
         guard let raw = entry.snapshot?.updatedAt else { return "尚未刷新" }
         let parser = ISO8601DateFormatter()
@@ -60,7 +68,13 @@ struct QuotaWidgetView: View {
             } else {
                 ForEach(Array(providers.prefix(capacity))) { provider in
                     HStack(spacing: 10) {
-                        Text(provider.symbol).font(.title3.weight(.semibold))
+                        Group {
+                            if let logo = logoName(provider.name) {
+                                Image(logo).resizable().scaledToFit().padding(6)
+                            } else {
+                                Text(provider.symbol).font(.title3.weight(.semibold))
+                            }
+                        }
                             .frame(width: 30, height: 30).background(.green.opacity(0.12), in: Circle())
                         VStack(alignment: .leading, spacing: 3) {
                             Text(provider.name).font(.caption.weight(.medium)).lineLimit(1)

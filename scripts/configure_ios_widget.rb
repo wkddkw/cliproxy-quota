@@ -40,7 +40,17 @@ unless project.targets.any? { |target| target.name == 'QuotaWidget' }
   embed.add_file_reference(widget.product_reference).settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
 end
 widget = project.targets.find { |target| target.name == 'QuotaWidget' }
-widget.build_configurations.each { |config| config.build_settings['PRODUCT_NAME'] = '$(TARGET_NAME)' }
+version = File.read(File.join(__dir__, '../pubspec.yaml')).match(/^version:\s+(\S+)\+(\d+)/)
+widget.build_configurations.each do |config|
+  config.build_settings['PRODUCT_NAME'] = '$(TARGET_NAME)'
+  config.build_settings['MARKETING_VERSION'] = version[1]
+  config.build_settings['CURRENT_PROJECT_VERSION'] = version[2]
+end
+group = project.main_group.find_subpath('QuotaWidget')
+unless group.files.any? { |file| file.path == 'Assets.xcassets' }
+  assets = group.new_file('Assets.xcassets')
+  widget.resources_build_phase.add_file_reference(assets)
+end
 embed = runner.build_phases.find { |phase| phase.display_name == 'Embed App Extensions' }
 thin = runner.build_phases.find { |phase| phase.display_name == 'Thin Binary' }
 if embed && thin

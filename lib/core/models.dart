@@ -1,23 +1,7 @@
 import 'dart:math' as math;
-
-typedef Json = Map<String, dynamic>;
-
-double? number(dynamic value) {
-  final result = value is num ? value.toDouble() : double.tryParse('$value');
-  return result != null && result.isFinite ? result : null;
-}
-
-DateTime? timestamp(dynamic value) {
-  if (value == null) return null;
-  final numeric = number(value);
-  if (numeric != null) {
-    return DateTime.fromMillisecondsSinceEpoch(
-      (numeric > 100000000000 ? numeric : numeric * 1000).round(),
-      isUtc: true,
-    );
-  }
-  return DateTime.tryParse('$value')?.toUtc();
-}
+import 'json_values.dart';
+import 'quota_details.dart';
+export 'json_values.dart';
 
 String providerName(String raw) => switch (raw.toLowerCase()) {
   'codex' || 'openai' || 'openai-compatibility' || 'gpt' => 'GPT',
@@ -45,6 +29,7 @@ class AccountQuota {
     this.reason,
     this.windowMinutes,
     this.supported = true,
+    this.periods = const [],
   });
   final String provider;
   final String name;
@@ -54,6 +39,87 @@ class AccountQuota {
   final String? reason;
   final double? windowMinutes;
   final bool supported;
+  final List<QuotaPeriod> periods;
+
+  AccountQuota withPeriods(List<QuotaPeriod> value) => AccountQuota(
+    provider: provider,
+    name: name,
+    remaining: remaining,
+    resetAt: resetAt,
+    observedAt: observedAt,
+    reason: reason,
+    windowMinutes: windowMinutes,
+    supported: supported,
+    periods: value,
+  );
+
+  AccountQuota withBillingDetails(AccountQuota? monthly) {
+    if (monthly == null || !monthly.periods.any((p) => p.usd.hasData)) {
+      return this;
+    }
+    return withPeriods([
+      ...periods.where((p) => !p.usd.hasData),
+      ...monthly.periods.where((p) => p.usd.hasData),
+    ]);
+  }
+
+  AccountQuota? withGrokBilling(Json config) {
+    final period = config['currentPeriod'] ?? config['current_period'];
+    final periodMap = period is Map ? Json.from(period) : <String, dynamic>{};
+    final type = '${periodMap['type'] ?? ''}'.toLowerCase();
+    final credits = number(
+      config['creditUsagePercent'] ?? config['credit_usage_percent'],
+    );
+    final weekly =
+        credits != null ||
+        type.contains('weekly') ||
+        (config['productUsage'] is List &&
+            (config['productUsage'] as List).isNotEmpty);
+    double? amount(dynamic value) =>
+        number(value is Map ? value['val'] : value);
+    final limit = amount(config['monthlyLimit'] ?? config['monthly_limit']);
+    final used = amount(config['used']);
+    if (!weekly && limit == null && used == null && !type.contains('monthly')) {
+      return null;
+    }
+    final percent = weekly
+        ? credits
+        : limit != null && limit > 0 && used != null && used >= 0
+        ? used / limit * 100
+        : null;
+    final start = timestamp(
+      weekly
+          ? periodMap['start'] ??
+                config['billingPeriodStart'] ??
+                config['billing_period_start']
+          : config['billingPeriodStart'] ?? config['billing_period_start'],
+    );
+    final end = timestamp(
+      weekly
+          ? periodMap['end'] ??
+                config['billingPeriodEnd'] ??
+                config['billing_period_end']
+          : config['billingPeriodEnd'] ?? config['billing_period_end'],
+    );
+    final remaining = percent != null && percent >= 0
+        ? (100 - percent).clamp(0, 100).toDouble()
+        : null;
+    return AccountQuota(
+      provider: provider,
+      name: name,
+      remaining: remaining,
+      resetAt: end,
+      observedAt: DateTime.now().toUtc(),
+      supported: true,
+      periods: QuotaPeriod.fromGrok(config),
+      windowMinutes: start != null && end != null && end.isAfter(start)
+          ? end.difference(start).inSeconds / 60
+          : weekly
+          ? 10080
+          : null,
+      reason: remaining == null ? '服务未提供当前窗口的剩余百分比' : null,
+    );
+  }
 
   factory AccountQuota.fromApi(Json file) {
     final rawProvider = "${file['provider'] ?? file['type'] ?? ''}"
@@ -149,6 +215,15 @@ class AccountQuota {
     }
     return AccountQuota(
       provider: provider,
+      periods: windows
+          .map(
+            (w) => QuotaPeriod(
+              label: windowLabel(w.minutes),
+              remainingPercent: w.remaining,
+              end: w.resetAt,
+            ),
+          )
+          .toList(),
       name: name,
       remaining: chosen?.remaining,
       resetAt: chosen?.resetAt,
@@ -201,9 +276,14 @@ class AccountQuota {
     final chosen = candidates.isEmpty
         ? null
         : candidates.reduce((a, b) => a.remaining <= b.remaining ? a : b);
-    if (chosen == null && remaining != null) return this;
+    if (chosen == null && remaining != null) {
+      return data == null
+          ? this
+          : withPeriods([...periods, ...QuotaPeriod.fromPlugin(data)]);
+    }
     return AccountQuota(
       provider: provider,
+      periods: data == null ? periods : QuotaPeriod.fromPlugin(data),
       name: name,
       remaining: chosen?.remaining,
       resetAt: chosen?.resetAt,
@@ -225,6 +305,7 @@ class AccountQuota {
     'reason': reason,
     'windowMinutes': windowMinutes,
     'supported': supported,
+    'periods': periods.map((period) => period.toJson()).toList(),
   };
   factory AccountQuota.fromJson(Json json) => AccountQuota(
     provider: json['provider'] as String,
@@ -235,6 +316,10 @@ class AccountQuota {
     reason: json['reason'] as String?,
     windowMinutes: number(json['windowMinutes']),
     supported: json['supported'] != false,
+    periods: (json['periods'] is List ? json['periods'] as List : const [])
+        .whereType<Map>()
+        .map((p) => QuotaPeriod.fromJson(Json.from(p)))
+        .toList(),
   );
 }
 

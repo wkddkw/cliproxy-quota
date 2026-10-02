@@ -127,7 +127,21 @@ class ManagementApi {
                   (p) => '${p['quota_provider']}'.toLowerCase() == rawProvider,
                 )
                 .firstOrNull;
-            if (plugin == null || '${file['auth_index'] ?? ''}'.isEmpty) return;
+            if ('${file['auth_index'] ?? file['authIndex'] ?? ''}'.isEmpty) {
+              return;
+            }
+            if (plugin == null) {
+              if (accounts[index].provider == 'Grok') {
+                accounts[index] = await _grokQuota(
+                  base,
+                  prefix,
+                  key,
+                  file,
+                  accounts[index],
+                );
+              }
+              return;
+            }
             final uri = base.replace(
               path:
                   '$prefix/plugins/${Uri.encodeComponent('${plugin['id']}')}/quota',
@@ -157,6 +171,16 @@ class ManagementApi {
                 );
               }
             }
+            if (accounts[index].provider == 'Grok' &&
+                accounts[index].remaining == null) {
+              accounts[index] = await _grokQuota(
+                base,
+                prefix,
+                key,
+                file,
+                accounts[index],
+              );
+            }
           }),
         );
       }
@@ -172,6 +196,105 @@ class ManagementApi {
     } on FormatException {
       throw const AppError('接口返回的不是有效 JSON，请检查完整地址');
     }
+  }
+
+  Future<AccountQuota> _grokQuota(
+    Uri base,
+    String prefix,
+    String key,
+    Json file,
+    AccountQuota account,
+  ) async {
+    String? failure;
+    AccountQuota? primary;
+    AccountQuota? monthly;
+    // Same read-only billing requests as the upstream auth-file quota screen.
+    // Never use its paid-plan chat health probe: that would consume quota.
+    for (final weekly in [true, false]) {
+      try {
+        final uri = base.replace(
+          path: prefix == '/v8/management'
+              ? '$prefix/requests/api-call'
+              : '$prefix/api-call',
+        );
+        final header = <String, String>{
+          'Authorization': 'Bearer \$TOKEN\$',
+          'x-xai-token-auth': 'xai-grok-cli',
+          'x-grok-client-version': '0.2.91',
+          'accept': '*/*',
+          'user-agent': 'grok-pager/0.2.91 grok-shell/0.2.91 (macos; aarch64)',
+        };
+        for (final record in [
+          file,
+          file['metadata'],
+          file['attributes'],
+          file['oauth'],
+          file['user'],
+        ]) {
+          if (record is! Map) continue;
+          final id =
+              record['sub'] ??
+              record['subject'] ??
+              record['user_id'] ??
+              record['userId'];
+          if (id != null && '$id'.trim().isNotEmpty) {
+            header['x-userid'] = '$id';
+            break;
+          }
+        }
+        final response = await _send(
+          uri,
+          key,
+          method: 'POST',
+          body: {
+            'authIndex': '${file['auth_index'] ?? file['authIndex']}',
+            'method': 'GET',
+            'url':
+                'https://cli-chat-proxy.grok.com/v1/billing${weekly ? '?format=credits' : ''}',
+            'header': header,
+          },
+        );
+        if (response.statusCode != 200) {
+          failure = '限额查询失败（管理接口 HTTP ${response.statusCode}）';
+          continue;
+        }
+        final envelope = jsonDecode(utf8.decode(response.bodyBytes));
+        if (envelope is! Map) {
+          failure = '限额查询失败 · 返回格式不正确';
+          continue;
+        }
+        final status = number(envelope['status_code'])?.toInt();
+        if (status == null || status < 200 || status >= 300) {
+          failure = status == 401
+              ? '401 · Grok 认证失效'
+              : '限额查询失败（Grok HTTP ${status ?? '未知'}）';
+          continue;
+        }
+        var payload = envelope['body'];
+        if (payload is String) payload = jsonDecode(payload);
+        if (payload is! Map || payload['config'] is! Map) {
+          failure = '服务未返回 Grok 账单限额';
+          continue;
+        }
+        final result = account.withGrokBilling(Json.from(payload['config']));
+        // Keep a real weekly window with unknown usage; do not replace its clock
+        // with a different monthly balance, just as the upstream management UI.
+        if (result != null) {
+          if (weekly) {
+            primary = result;
+          } else {
+            monthly = result;
+          }
+          continue;
+        }
+        failure = '服务未提供可计算的 Grok 剩余百分比';
+      } catch (_) {
+        failure = 'Grok 限额查询失败 · 网络或返回格式异常';
+      }
+    }
+    if (primary != null) return primary.withBillingDetails(monthly);
+    if (monthly != null) return monthly;
+    return account.withProbe(failure: failure ?? 'Grok 限额查询失败');
   }
 
   Future<List<Json>> _plugins(Uri base, String prefix, String key) async {
@@ -196,13 +319,24 @@ class ManagementApi {
     }
   }
 
-  Future<http.Response> _get(Uri uri, String key) async {
-    final request = http.Request('GET', uri)
+  Future<http.Response> _get(Uri uri, String key) => _send(uri, key);
+
+  Future<http.Response> _send(
+    Uri uri,
+    String key, {
+    String method = 'GET',
+    Json? body,
+  }) async {
+    final request = http.Request(method, uri)
       ..followRedirects = false
       ..headers.addAll({
         'Authorization': 'Bearer ${key.trim()}',
         'Accept': 'application/json',
       });
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode(body);
+    }
     return await (() async => http.Response.fromStream(
       await client.send(request),
     ))().timeout(const Duration(seconds: 15));

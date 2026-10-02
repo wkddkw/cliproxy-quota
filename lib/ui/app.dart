@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'widget_setup.dart';
+import 'quota_period_view.dart';
+import '../core/quota_details.dart';
 import 'package:http/http.dart' as http;
 import '../core/connection.dart';
 import '../core/models.dart';
@@ -399,6 +403,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                 ],
               ),
+              if (Platform.isAndroid) const WidgetSetupPanel(),
               const SizedBox(height: 24),
               const Text(
                 '建议通过 Tailscale 或家庭 VPN 连接。管理密钥仅存于本机系统安全存储；桌面小组件不持有密钥。',
@@ -433,13 +438,21 @@ class ProviderCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 23,
-                    child: Text(
-                      provider.symbol,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
+                    child: switch (provider.name) {
+                      'GPT' || 'Claude' || 'Grok' => Image.asset(
+                        'assets/providers/${provider.name.toLowerCase()}.png',
+                        width: 28,
+                        height: 28,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
-                    ),
+                      _ => Text(
+                        provider.symbol,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    },
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -557,6 +570,11 @@ class AccountsPage extends StatelessWidget {
                       '限额观测于 ${formatTime(account.observedAt!)}',
                       style: const TextStyle(fontSize: 12),
                     ),
+                  for (final period
+                      in account.periods.isEmpty
+                          ? [QuotaPeriod(label: '额度明细', end: account.resetAt)]
+                          : account.periods)
+                    QuotaPeriodView(period: period),
                 ],
               ),
             ),

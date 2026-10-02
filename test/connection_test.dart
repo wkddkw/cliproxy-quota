@@ -186,13 +186,13 @@ void main() {
       MockClient((r) async {
         if (r.url.path.endsWith('credentials')) {
           return http.Response(
-            '{"files":[{"provider":"grok","auth_index":"1"}]}',
+            '{"files":[{"provider":"other-provider","auth_index":"1"}]}',
             200,
           );
         }
         if (r.url.path.endsWith('plugins')) {
           return http.Response(
-            '{"plugins":[{"id":"grok","quota_provider":"grok","supports_quota":true,"effective_enabled":true,"registered":true}]}',
+            '{"plugins":[{"id":"other-provider","quota_provider":"other-provider","supports_quota":true,"effective_enabled":true,"registered":true}]}',
             200,
           );
         }

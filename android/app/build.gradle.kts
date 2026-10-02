@@ -29,11 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    val previewPassword = System.getenv("ANDROID_SIGNING_PASSWORD")
+    signingConfigs {
+        if (!previewPassword.isNullOrBlank() && file("preview.keystore").exists()) {
+            create("preview") {
+                storeFile = file("preview.keystore")
+                storePassword = previewPassword
+                keyAlias = "preview"
+                keyPassword = previewPassword
+            }
+        }
+    }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("preview") ?: signingConfigs.getByName("debug")
         }
     }
 }

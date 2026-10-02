@@ -47,6 +47,15 @@ class QuotaWidgetProvider : AppWidgetProvider() {
                 val provider = providers!!.getJSONObject(i)
                 val row = RemoteViews(context.packageName, R.layout.quota_widget_row)
                 row.setTextViewText(R.id.row_symbol, provider.optString("symbol", "?"))
+                val logo = when (provider.optString("name")) {
+                    "GPT" -> R.drawable.provider_gpt
+                    "Claude" -> R.drawable.provider_claude
+                    "Grok" -> R.drawable.provider_grok
+                    else -> null
+                }
+                row.setViewVisibility(R.id.row_symbol, if (logo == null) View.VISIBLE else View.GONE)
+                row.setViewVisibility(R.id.row_logo, if (logo == null) View.GONE else View.VISIBLE)
+                if (logo != null) row.setImageViewResource(R.id.row_logo, logo)
                 row.setTextViewText(R.id.row_name, provider.optString("name"))
                 row.setTextViewText(R.id.row_count, "${provider.optInt("count")} 个账号")
                 val remaining = if (provider.isNull("remaining")) null else provider.optDouble("remaining")

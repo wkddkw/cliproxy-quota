@@ -1,5 +1,6 @@
 """Generate documentation illustrations (sample data, no real credentials)."""
 from html import escape
+import base64
 from pathlib import Path
 import subprocess
 
@@ -16,7 +17,12 @@ def text(x, y, value, size=15, color='#163c30', weight=400):
 
 def circle(x, y, symbol):
     parts.append(f'<circle cx="{x}" cy="{y}" r="18" fill="#d9e8df"/>')
-    parts.append(f'<text x="{x}" y="{y + 7}" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">{escape(symbol)}</text>')
+    name = {'G': 'gpt', '✳': 'claude', '𝕏': 'grok'}.get(symbol)
+    if name:
+        encoded = base64.b64encode((root / f'assets/providers/{name}.png').read_bytes()).decode()
+        parts.append(f'<image x="{x-12}" y="{y-12}" width="24" height="24" href="data:image/png;base64,{encoded}"/>')
+    else:
+        parts.append(f'<text x="{x}" y="{y + 7}" text-anchor="middle" font-size="22" fill="#163c30" font-weight="600">{escape(symbol)}</text>')
 
 def phone(x, title, index):
     rect(x, 122, 298, 575, '#163c30', 34)
@@ -68,16 +74,23 @@ for i, (name, symbol, count, percent) in enumerate([('GPT', 'G', 2, 5), ('Claude
 text(x + 24, 660, '下拉刷新 · 点供应商查看账号', 11, '#536b60')
 
 x = 715
-phone(x, 'GPT', '03')
-text(x + 24, 245, '2 个认证文件', 13, '#536b60')
-for y, email, percent in [(266, 'account-a@example.invalid', 85), (431, 'account-b@example.invalid', 5)]:
-    rect(x + 18, y, 262, 150, '#ffffff', 14)
-    text(x + 32, y + 30, email, 12, weight=600)
-    text(x + 32, y + 69, f'剩余 {percent}%', 26, weight=600)
-    text(x + 32, y + 99, '5 小时窗口', 12)
-    text(x + 32, y + 123, '重置于 10-02 17:00', 12, '#536b60')
-text(x + 24, 636, '禁用、401 和探测失败直接显示原因', 11, '#536b60')
-text(x + 24, 659, '仅查看，账号操作仍留在服务端', 11, '#536b60')
+phone(x, 'Grok', '03')
+text(x + 24, 245, 'grok-account@example.invalid', 12, '#536b60')
+rect(x + 18, 268, 262, 140, '#ffffff', 14)
+text(x + 32, 296, '每周限额', 16, weight=600)
+text(x + 32, 332, '该周期剩余 42%', 23, weight=600)
+text(x + 32, 362, '周期结束 / 重置：10-08 17:00', 11, '#536b60')
+text(x + 32, 389, 'Token 额度：服务未提供', 11, '#536b60')
+rect(x + 18, 429, 262, 186, '#ffffff', 14)
+text(x + 32, 459, '月度美元额度', 16, weight=600)
+text(x + 32, 486, '周期：10-01 至 11-01', 11, '#536b60')
+text(x + 32, 516, '总额度', 11, '#536b60')
+text(x + 165, 516, '$150.00', 18, weight=600)
+text(x + 32, 547, '已用', 11, '#536b60')
+text(x + 165, 547, '$45.00', 18, weight=600)
+text(x + 32, 578, '剩余', 11, '#536b60')
+text(x + 165, 578, '$105.00', 18, weight=600)
+text(x + 24, 647, '不同周期分开展示；绝对额度按接口返回', 10, '#536b60')
 
 x = 1050
 rect(x, 122, 305, 575, '#dfeae2', 28)
