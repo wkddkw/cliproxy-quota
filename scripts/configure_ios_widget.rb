@@ -19,6 +19,7 @@ unless project.targets.any? { |target| target.name == 'QuotaWidget' }
   widget.build_configurations.each do |config|
     config.build_settings.merge!({
       'PRODUCT_BUNDLE_IDENTIFIER' => 'com.wkddkw.cliproxyQuota.QuotaWidget',
+      'PRODUCT_NAME' => '$(TARGET_NAME)',
       'INFOPLIST_FILE' => 'QuotaWidget/Info.plist',
       'CODE_SIGN_ENTITLEMENTS' => 'QuotaWidget/QuotaWidget.entitlements',
       'SWIFT_VERSION' => '5.0', 'SKIP_INSTALL' => 'YES',
@@ -38,6 +39,8 @@ unless project.targets.any? { |target| target.name == 'QuotaWidget' }
   embed.dst_subfolder_spec = '13'
   embed.add_file_reference(widget.product_reference).settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
 end
+widget = project.targets.find { |target| target.name == 'QuotaWidget' }
+widget.build_configurations.each { |config| config.build_settings['PRODUCT_NAME'] = '$(TARGET_NAME)' }
 embed = runner.build_phases.find { |phase| phase.display_name == 'Embed App Extensions' }
 thin = runner.build_phases.find { |phase| phase.display_name == 'Thin Binary' }
 if embed && thin
