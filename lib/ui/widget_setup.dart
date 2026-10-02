@@ -40,9 +40,9 @@ class _WidgetSetupPanelState extends State<WidgetSetupPanel>
 
   Future<void> load({bool reportMissing = false}) async {
     try {
-      final value = await AppStorage.channel.invokeMapMethod<String, dynamic>(
-        'widgetStatus',
-      );
+      final value = await AppStorage.channel
+          .invokeMapMethod<String, dynamic>('widgetStatus')
+          .timeout(const Duration(seconds: 5));
       if (!mounted) return;
       setState(() {
         status = value ?? {};
@@ -72,7 +72,10 @@ class _WidgetSetupPanelState extends State<WidgetSetupPanel>
       await load();
       baseline = (status['widgetCount'] as num?)?.toInt() ?? 0;
       final requested =
-          await AppStorage.channel.invokeMethod<bool>('pinWidget') == true;
+          await AppStorage.channel
+              .invokeMethod<bool>('pinWidget')
+              .timeout(const Duration(seconds: 8)) ==
+          true;
       if (!mounted) return;
       setState(() {
         pending = requested;
@@ -91,6 +94,13 @@ class _WidgetSetupPanelState extends State<WidgetSetupPanel>
         );
       } else {
         await manualHelp();
+      }
+    } on TimeoutException {
+      if (mounted) {
+        setState(() => message = '系统桌面未在 8 秒内返回添加结果。请尝试手动添加，并复制诊断信息。');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message!)));
       }
     } on PlatformException catch (e) {
       if (mounted) {

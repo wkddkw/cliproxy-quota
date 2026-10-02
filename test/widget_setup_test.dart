@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cliproxy_quota/core/storage.dart';
@@ -86,6 +87,39 @@ void main() {
       await tester.pump(const Duration(seconds: 12));
       await tester.pumpAndSettle();
       expect(find.text('系统已创建桌面小组件（共 1 个）。'), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'supported launcher that never returns produces timeout feedback',
+    (tester) async {
+      final stalled = Completer<bool>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(AppStorage.channel, (call) async {
+            if (call.method == 'widgetStatus') {
+              return {
+                'pinSupported': true,
+                'widgetCount': 0,
+                'providerRegistered': true,
+              };
+            }
+            return stalled.future;
+          });
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: WidgetSetupPanel())),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('添加桌面小组件'));
+      await tester.pump();
+      expect(find.text('正在向系统桌面请求添加…'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 8));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('系统桌面未在 8 秒内返回添加结果'), findsWidgets);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull,
+      );
+      stalled.complete(false);
+      await tester.pump();
     },
   );
   testWidgets(

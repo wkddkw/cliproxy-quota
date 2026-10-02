@@ -10,11 +10,15 @@ import android.widget.RemoteViews
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMethodCodec
 
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.wkddkw.cliproxy_quota/cache")
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        // Launcher binder calls can stall on OEM desktops. Keep them off the
+        // Android UI thread so Flutter can show progress and timeout feedback.
+        MethodChannel(messenger, "com.wkddkw.cliproxy_quota/cache", StandardMethodCodec.INSTANCE, messenger.makeBackgroundTaskQueue())
             .setMethodCallHandler { call, result ->
                 val manager = AppWidgetManager.getInstance(this)
                 if (call.method == "widgetStatus") {
@@ -45,8 +49,14 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
                 if (call.method == "openHome") {
-                    startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    result.success(null)
+                    runOnUiThread {
+                        try {
+                            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error("HOME_OPEN", error.javaClass.simpleName, null)
+                        }
+                    }
                     return@setMethodCallHandler
                 }
                 val cache = getSharedPreferences("quota_widget", MODE_PRIVATE)
