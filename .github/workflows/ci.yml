@@ -35,7 +35,7 @@ jobs:
       - run: flutter build apk --release
         env:
           ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
-      - run: ./gradlew :quota_platform:testReleaseUnitTest
+      - run: ./gradlew :quota_platform:testDebugUnitTest
         working-directory: android
       - uses: actions/upload-artifact@v4
         with:

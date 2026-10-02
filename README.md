@@ -48,7 +48,7 @@ flutter test
 flutter build apk --release
 # Android 原生提醒规则测试
 cd android
-./gradlew :quota_platform:testReleaseUnitTest
+./gradlew :quota_platform:testDebugUnitTest
 # macOS + Xcode
 flutter build ios --release --no-codesign
 ```
