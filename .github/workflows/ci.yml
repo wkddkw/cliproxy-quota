@@ -1,0 +1,51 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cliproxy-quota-android
+          path: build/app/outputs/flutter-apk/app-release.apk
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - run: test -d build/ios/iphoneos/Runner.app/PlugIns/QuotaWidget.appex
+      - run: ditto -c -k --keepParent build/ios/iphoneos/Runner.app build/ios/cliproxy-quota-ios-unsigned.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cliproxy-quota-ios-unsigned
+          path: build/ios/cliproxy-quota-ios-unsigned.zip
