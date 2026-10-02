@@ -8,11 +8,11 @@
 
 *界面示意，图中为示例数据；系统桌面小组件的布局和行数会随平台与尺寸变化。*
 
-**[下载 Android 预览版](https://github.com/wkddkw/cliproxy-quota/releases/tag/v0.1.1) · [查看构建记录](https://github.com/wkddkw/cliproxy-quota/actions) · [接口适配说明](docs/api-contract.md)**
+**[下载 Android 预览版](https://github.com/wkddkw/cliproxy-quota/releases/tag/v0.1.2) · [查看构建记录](https://github.com/wkddkw/cliproxy-quota/actions) · [接口适配说明](docs/api-contract.md)**
 
 ## 手机与桌面兼容性
 
-一加、OPPO、vivo、小米等通过标准 Android 小组件接入；厂商卡片中心是否显示取决于系统桌面，不能只按品牌保证。设置页提供「添加桌面小组件」和本机桌面能力检查。
+一加、OPPO、vivo、小米等通过标准 Android 小组件接入；厂商卡片中心是否显示取决于系统桌面，不能只按品牌保证。设置页提供「添加桌面小组件」和本机桌面能力检查。v0.1.2 修复不支持直接固定时按钮点击无反馈的问题；可复制组件注册、当前桌面和实际创建数量的诊断信息。系统接受请求不代表已添加成功。
 
 [查看机型、接入方式和真机验证状态表](docs/device-compatibility.md)。目前一加 13T 的 v0.1.0 卡片中心问题已有用户反馈，v0.1.1 的直接固定入口仍需真机回测，其他品牌不标为已经实测兼容。
 

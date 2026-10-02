@@ -26,29 +26,66 @@ void main() {
       const MaterialApp(home: Scaffold(body: WidgetSetupPanel())),
     );
     await tester.pumpAndSettle();
-    expect(find.text('当前桌面支持直接添加'), findsOneWidget);
+    expect(find.text('当前桌面报告支持直接添加'), findsOneWidget);
     await tester.tap(find.text('添加桌面小组件'));
     await tester.pumpAndSettle();
     expect(pinned, true);
-    expect(find.text('已请求系统确认，请在桌面弹窗中点击添加。'), findsOneWidget);
+    expect(find.text('请求已发出，等待系统确认；尚未确认添加成功。'), findsWidgets);
+    await tester.pump(const Duration(seconds: 12));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('尚未检测到新小组件'), findsOneWidget);
+    expect(find.textContaining('系统已创建桌面小组件'), findsNothing);
+  });
+  testWidgets('unsupported launcher tap provides feedback and manual entry', (
+    tester,
+  ) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          AppStorage.channel,
+          (call) async => call.method == 'widgetStatus'
+              ? {'pinSupported': false, 'device': 'Custom launcher'}
+              : false,
+        );
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: WidgetSetupPanel())),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('当前桌面报告不支持直接添加'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.text('添加桌面小组件'));
+    await tester.pumpAndSettle();
+    expect(find.text('从系统桌面手动添加'), findsOneWidget);
+    expect(find.textContaining('当前桌面未接受直接添加请求'), findsWidgets);
   });
   testWidgets(
-    'unsupported launcher explains manual entry and disables pin request',
+    'actual widget IDs confirm creation rather than request acceptance',
     (tester) async {
+      var count = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            AppStorage.channel,
-            (_) async => {'pinSupported': false, 'device': 'Custom launcher'},
-          );
+          .setMockMethodCallHandler(AppStorage.channel, (call) async {
+            if (call.method == 'widgetStatus') {
+              return {
+                'pinSupported': true,
+                'widgetCount': count,
+                'providerRegistered': true,
+                'launcher': 'test.launcher',
+              };
+            }
+            return true;
+          });
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: WidgetSetupPanel())),
       );
       await tester.pumpAndSettle();
-      expect(find.text('当前桌面不支持直接添加，可尝试手动添加'), findsOneWidget);
-      expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull,
-      );
+      await tester.tap(find.text('添加桌面小组件'));
+      await tester.pumpAndSettle();
+      count = 1;
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pumpAndSettle();
+      expect(find.text('系统已创建桌面小组件（共 1 个）。'), findsOneWidget);
     },
   );
   testWidgets(
