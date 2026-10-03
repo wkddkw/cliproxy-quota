@@ -109,6 +109,10 @@ void main() {
               (first['nextCheck'] as num) -
               (first['lastBackgroundCheck'] as num);
           expect(delay, inInclusiveRange(14 * 60 * 1000, 16 * 60 * 1000));
+          // Returning to the app with unchanged settings must not postpone a tick.
+          await Monitoring.configureNative(storage.monitoringSettings);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          expect((await status())['nextCheck'], first['nextCheck']);
           await quotaChannel.invokeMethod<void>('checkNow');
           final second = await waitFor(
             (s) =>

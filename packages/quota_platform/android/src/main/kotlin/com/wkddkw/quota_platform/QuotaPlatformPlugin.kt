@@ -109,7 +109,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                             try {
                                 if (!n.statusAllowed()) throw IllegalStateException("status notification disabled")
                                 if (QuotaMonitorService.instance == null) QuotaMonitorService.start(context)
-                                else QuotaMonitorService.instance?.reschedule()
+                                else if (reset || old.optInt("interval", 15) != incoming.optInt("interval", 15)) QuotaMonitorService.instance?.reschedule()
                                 result.success(null)
                             } catch (_: Exception) {
                                 monitor().edit().putString("config", incoming.put("enabled", false).toString()).commit()
