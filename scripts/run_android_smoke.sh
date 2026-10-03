@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Grant the notification permission as soon as the test APK is installed.
-flutter test integration_test/monitor_service_test.dart -d emulator-5554 > /tmp/quota-service-smoke.log 2>&1 &
+# Connect directly to the VM; DDS startup can fail on the hosted emulator.
+flutter test integration_test/monitor_service_test.dart -d emulator-5554 --no-dds > /tmp/quota-service-smoke.log 2>&1 &
 quota_test_pid=$!
 trap 'kill "$quota_test_pid" 2>/dev/null || true' EXIT
 while kill -0 "$quota_test_pid" 2>/dev/null; do
