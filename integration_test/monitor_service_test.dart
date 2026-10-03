@@ -84,7 +84,10 @@ void main() {
         try {
           // CI grants POST_NOTIFICATIONS once Flutter installs the debug app.
           await waitFor(
-            (s) => s['allowed'] == true && s['summaryAllowed'] == true,
+            (s) =>
+                s['allowed'] == true &&
+                s['summaryAllowed'] == true &&
+                s['exactAlarmAllowed'] == true,
           );
           await initializeAndroidMonitoring(storage);
           expect(Monitoring.startupError, isNull);
