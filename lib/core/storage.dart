@@ -26,6 +26,7 @@ class AppStorage {
   }
 
   Future<void> saveMonitoring(MonitoringSettings value) async {
+    await preferences.setString('monitoring', jsonEncode(value.toJson()));
     try {
       await Monitoring.configure(value);
     } catch (_) {
@@ -35,7 +36,6 @@ class AppStorage {
       );
       rethrow;
     }
-    await preferences.setString('monitoring', jsonEncode(value.toJson()));
   }
 
   Future<void> ensureConnectionEpoch() async {

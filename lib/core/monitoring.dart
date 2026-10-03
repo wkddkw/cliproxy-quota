@@ -41,7 +41,8 @@ class MonitoringSettings {
     'threshold': threshold,
     'mode': mode,
     'interval': interval,
-    'showStatus': showStatus,
+    // A monitoring service always exposes its ongoing status notification.
+    'showStatus': enabled,
     'hideDetails': hideDetails,
   };
   factory MonitoringSettings.fromJson(Json j) {
@@ -79,6 +80,7 @@ class AndroidMonitoringScheduler implements MonitoringScheduler {
 class Monitoring {
   static MonitoringScheduler scheduler = AndroidMonitoringScheduler();
   static String? startupError;
+  static int? serviceCallback;
   static Future<void> configure(MonitoringSettings value) async {
     if (!Platform.isAndroid) return;
     if (value.enabled && startupError != null) throw AppError(startupError!);
@@ -91,12 +93,15 @@ class Monitoring {
       }
     } catch (_) {
       await configureNative(value.copyWith(enabled: false));
-      throw const AppError('后台检查未能启动，请重试；当前未开启提醒');
+      throw const AppError('监测未能启动，请重试；当前未开启提醒');
     }
   }
 
-  static Future<void> configureNative(MonitoringSettings value) => quotaChannel
-      .invokeMethod<void>('configureMonitoring', jsonEncode(value.toJson()));
+  static Future<void> configureNative(MonitoringSettings value) =>
+      quotaChannel.invokeMethod<void>(
+        'configureMonitoring',
+        jsonEncode({...value.toJson(), 'serviceCallback': serviceCallback}),
+      );
   static Json cacheData(QuotaSnapshot snapshot) => {
     'updatedAt': snapshot.updatedAt.toIso8601String(),
     'observedMillis': snapshot.updatedAt.millisecondsSinceEpoch,

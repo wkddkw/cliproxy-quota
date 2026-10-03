@@ -59,3 +59,34 @@ jobs:
         with:
           name: cliproxy-quota-ios-unsigned
           path: build/ios/cliproxy-quota-ios-unsigned.zip
+  service-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - run: flutter pub get
+      - name: Enable KVM
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: scripts/run_android_smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quota-service-smoke-log
+          path: /tmp/quota-service-smoke.log

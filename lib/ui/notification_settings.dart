@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../core/connection.dart';
 import '../core/monitoring.dart';
 import '../core/storage.dart';
@@ -17,16 +18,19 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
   Map<String, dynamic> status = {};
   bool busy = false;
   String? message;
+  Timer? poll;
   @override
   void initState() {
     super.initState();
     value = widget.storage.monitoringSettings;
     WidgetsBinding.instance.addObserver(this);
     load();
+    poll = Timer.periodic(const Duration(seconds: 5), (_) => load());
   }
 
   @override
   void dispose() {
+    poll?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -38,10 +42,18 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
 
   Future<void> load() async {
     try {
+      await widget.storage.preferences.reload();
       final response = await quotaChannel
           .invokeMapMethod<String, dynamic>('monitoringStatus')
           .timeout(const Duration(seconds: 5));
-      if (mounted) setState(() => status = response ?? {});
+      if (mounted) {
+        setState(() {
+          status = response ?? {};
+          if (status['enabled'] == false) {
+            value = value.copyWith(enabled: false);
+          }
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => message = '无法检查通知状态，请尝试系统通知设置');
     }
@@ -65,7 +77,7 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
       if (mounted) {
         setState(() {
           value = next;
-          message = next.enabled ? '通知设置已保存，首次有效检查建立提醒基准' : '消耗提醒已关闭';
+          message = next.enabled ? '常驻监测已开启，正在立即查询并建立基准' : '监测已停止，概览和消耗提醒已关闭';
         });
       }
       await load();
@@ -123,8 +135,8 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('开启消耗提醒'),
-            subtitle: const Text('按供应商最低剩余百分比变化提醒'),
+            title: const Text('开启常驻监测'),
+            subtitle: const Text('立即查询，按周期检查；常驻概览跟随监测服务'),
             value: value.enabled,
             onChanged: busy
                 ? null
@@ -169,17 +181,6 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('通知栏显示限额概览'),
-            subtitle: const Text('静默更新，可划掉；关闭后隐藏概览'),
-            value: value.showStatus,
-            onChanged: busy
-                ? null
-                : (enabled) => setState(
-                    () => value = value.copyWith(showStatus: enabled),
-                  ),
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
             title: const Text('隐藏通知内容'),
             subtitle: const Text('通知只提示变化，具体限额在 App 查看'),
             value: value.hideDetails,
@@ -220,31 +221,58 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
           ),
           if (value.enabled && status['allowed'] == false)
             const Text('系统已关闭消耗通知，检查仍在运行。请打开通知权限或关闭监测。'),
-          if (value.enabled &&
-              value.showStatus &&
-              status['summaryAllowed'] == false)
+          if (value.enabled && status['summaryAllowed'] == false)
             const Text('系统已关闭概览通知渠道，请检查通知设置。'),
           if (message != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(message!),
             ),
-          if (value.enabled && (status['lastCheck'] as num? ?? 0) > 0)
+          if (value.enabled) ...[
             Text(
-              '最近检查：${_time((status['lastCheck'] as num).toInt())}',
-              style: const TextStyle(fontSize: 12),
+              status['serviceRunning'] == true
+                  ? '常驻服务：运行中'
+                  : '常驻服务：未运行，系统定期检查备用',
             ),
-          if (value.enabled && '${status['lastError'] ?? ''}'.isNotEmpty)
-            Text(
-              '${status['lastError']}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.error,
+            if (status['checking'] == true) const Text('正在后台查询限额…'),
+            if ((status['lastBackgroundCheck'] as num? ?? 0) > 0)
+              Text(
+                '最近后台检查：${_time((status['lastBackgroundCheck'] as num).toInt())}',
+              )
+            else
+              const Text('尚未完成后台检查'),
+            if ((status['nextCheck'] as num? ?? 0) > 0)
+              Text('下次计划检查：${_time((status['nextCheck'] as num).toInt())}'),
+            if ('${status['lastBackgroundError'] ?? ''}'.isNotEmpty)
+              Text(
+                '${status['lastBackgroundError']}',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
+            if ('${status['serviceError'] ?? ''}'.isNotEmpty)
+              Text(
+                '${status['serviceError']}',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            if (status['batteryOptimized'] == true)
+              const Text('本机仍启用电池优化，锁屏时可能延迟；可在系统中允许本 App 后台运行。'),
+            TextButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      try {
+                        await quotaChannel.invokeMethod<void>(
+                          'openBatterySettings',
+                        );
+                      } catch (_) {
+                        if (mounted) setState(() => message = '请从系统应用信息进入电池设置');
+                      }
+                    },
+              child: const Text('后台与电池设置'),
             ),
+          ],
           const SizedBox(height: 10),
           const Text(
-            '后台检查由系统调度，省电模式、强行停止 App 或 VPN 断开可能导致延迟。打开 App 刷新也会检查。普通通知不保证进入 ColorOS 流体云；悬浮提醒和声音受系统设置、勿扰模式控制。',
+            '开启后立即检查，再按所选间隔计划运行。锁屏省电、强行停止或 VPN 断开仍可能延迟。Android 15+ 数据同步前台服务有后台运行时限，到时会停常驻服务并保留系统定期检查，打开 App 可恢复。Android 14+ 系统允许单独划掉常驻通知，划掉不会停止服务；要停止请关闭监测或点通知里的停止按钮。流体云尚未接入。',
             style: TextStyle(fontSize: 12, height: 1.6),
           ),
         ],

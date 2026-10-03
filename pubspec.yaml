@@ -1,7 +1,7 @@
 name: cliproxy_quota
 description: Read-only CLIProxyAPI quota app with Android consumption notifications.
 publish_to: none
-version: 0.1.4+5
+version: 0.1.5+6
 environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
@@ -15,6 +15,8 @@ dependencies:
   quota_platform:
     path: packages/quota_platform
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

@@ -105,11 +105,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('开启消耗提醒'));
+    await tester.tap(find.text('开启常驻监测'));
     await tester.pumpAndSettle();
     expect(storage.monitoringSettings.enabled, false);
     expect(calls, contains('requestNotificationPermission'));
     expect(find.textContaining('系统通知未开启'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(quotaChannel, null);
   });

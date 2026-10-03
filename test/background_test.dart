@@ -59,12 +59,15 @@ void main() {
   test('worker writes only sanitized native cache', () async {
     final client = MockClient((r) async => response(r));
     await runQuotaCheck(storage, client, () async => 'fake-key');
-    expect(calls.single.method, 'writeBackgroundCache');
+    expect(calls.map((c) => c.method), [
+      'backgroundStarted',
+      'writeBackgroundCache',
+    ]);
     expect(
-      calls.single.arguments.toString(),
+      calls.last.arguments.toString(),
       isNot(contains('private@example.invalid')),
     );
-    expect(calls.single.arguments.toString(), isNot(contains('fake-key')));
+    expect(calls.last.arguments.toString(), isNot(contains('fake-key')));
     expect(storage.snapshot, isNull);
     client.close();
   });
@@ -99,7 +102,8 @@ void main() {
           return response(r);
         });
         await runQuotaCheck(storage, client, () async => 'fake-key');
-        expect(calls, isEmpty);
+        expect(calls.map((c) => c.method), ['backgroundStarted']);
+        calls.clear();
         client.close();
       }
     },
@@ -111,8 +115,11 @@ void main() {
         (_) async => http.Response('private secret', 401),
       );
       await runQuotaCheck(storage, client, () async => 'fake-key');
-      expect(calls.single.method, 'backgroundFailure');
-      expect(calls.single.arguments, 'original');
+      expect(calls.map((c) => c.method), [
+        'backgroundStarted',
+        'backgroundFailure',
+      ]);
+      expect(calls.last.arguments, 'original');
       client.close();
     },
   );

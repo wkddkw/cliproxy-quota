@@ -62,22 +62,51 @@ class QuotaNotifications(private val context: Context) {
             manager.notify(7199, b.build()); true
         } catch (_: SecurityException) { false }
     }
-    fun summary(data: JSONObject, hide: Boolean, failed: Boolean = false) {
-        if (!statusAllowed()) return
+    fun monitorNotification(running: Boolean): Notification {
+        val state = context.getSharedPreferences("quota_monitor", Context.MODE_PRIVATE)
+        val c = try { JSONObject(state.getString("config", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
+        val hide = c.optBoolean("hideDetails")
+        val data = try { JSONObject(context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).getString("snapshot", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
         val providers = data.optJSONArray("providers")
         val lines = mutableListOf<String>()
-        if (providers != null) for (i in 0 until providers.length()) {
+        if (!hide && providers != null) for (i in 0 until providers.length()) {
             val p = providers.optJSONObject(i) ?: continue
             val pct = p.optDouble("remaining")
-            lines += "${p.optString("name")}：${if (pct.isFinite()) "${format(pct)}%" else "未提供"}"
+            lines += "${p.optString("name")}：${if (pct.isFinite()) "${format(pct)}%" else "查询失败 / 未提供"}"
         }
-        val text = if (hide) "限额概览已更新，打开 App 查看" else lines.joinToString(" · ").ifEmpty { "暂无支持限额的供应商" }
-        val b = builder(STATUS_CHANNEL, "CLIProxy 限额概览", text).setOnlyAlertOnce(true).setOngoing(false).setShowWhen(true).setWhen(data.optLong("observedMillis", System.currentTimeMillis()))
-        if (!hide) b.setStyle(Notification.InboxStyle().apply { lines.forEach { addLine(it) }; setSummaryText("最近检查结果，非实时；点击打开 App") })
-        b.setDefaults(0).setSound(null).setPriority(Notification.PRIORITY_LOW)
-        if (failed) b.setSubText("最近检查失败，显示缓存")
-        try { manager.notify(STATUS_ID, b.build()) } catch (_: SecurityException) {}
+        val last = state.getLong("lastBackgroundCheck", 0)
+        val next = state.getLong("nextCheck", 0)
+        val checking = running && state.getBoolean("checking", false)
+        val title = if (running) "CLIProxy 常驻监测" else "CLIProxy 系统定期检查"
+        val body = if (hide) "监测已开启，打开 App 查看" else lines.joinToString(" · ").ifEmpty { "正在建立限额基准" }
+        val b = builder(STATUS_CHANNEL, title, body).setOnlyAlertOnce(true).setOngoing(true).setAutoCancel(false)
+        val time = if (last > 0) "最近后台检查：${time(last)}" else "尚未完成后台检查"
+        val progress = if (checking) "正在查询限额" else if (running && next > 0) "下次计划：${time(next)}" else "由系统安排下次检查"
+        b.setStyle(Notification.InboxStyle().apply {
+            lines.forEach { addLine(it) }
+            addLine(time); addLine(progress)
+            val error = state.getString("lastBackgroundError", "").orEmpty()
+            if (error.isNotEmpty()) addLine(error)
+            if (!running) addLine(state.getString("serviceError", "常驻服务未运行，打开 App 恢复").orEmpty())
+            setSummaryText("约每 ${c.optInt("interval", 15)} 分钟 · 打开 App 查看")
+        })
+        b.setSubText(if (checking) "正在后台检查" else time)
+            .setWhen(if (last > 0) last else System.currentTimeMillis()).setShowWhen(true)
+            .setDefaults(0).setSound(null).setPriority(Notification.PRIORITY_LOW)
+        if (running) {
+            val refresh = PendingIntent.getService(context, 7178, android.content.Intent(context, QuotaMonitorService::class.java).setAction(QuotaMonitorService.CHECK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            b.addAction(Notification.Action.Builder(R.drawable.ic_quota_notification, "立即检查", refresh).build())
+        }
+        val stop = PendingIntent.getService(context, 7179, android.content.Intent(context, QuotaMonitorService::class.java).setAction(QuotaMonitorService.STOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        b.addAction(Notification.Action.Builder(R.drawable.ic_quota_notification, "停止监测", stop).build())
+        if (Build.VERSION.SDK_INT >= 31) b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        return b.build()
     }
+    fun monitorSummary(running: Boolean) {
+        if (!statusAllowed()) return
+        try { manager.notify(STATUS_ID, monitorNotification(running)) } catch (_: SecurityException) {}
+    }
+    private fun time(millis: Long): String = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(millis))
     fun hideSummary() { manager.cancel(STATUS_ID) }
     fun cancelAll() {
         hideSummary(); manager.cancel(7199)

@@ -25,7 +25,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     private var activityBinding: ActivityPluginBinding? = null
     private var permissionReply: MethodChannel.Result? = null
     companion object {
-        private val lock = Any()
+        private val lock = QuotaMonitorService.controlLock
         private const val PERMISSION_REQUEST = 4172
         private const val PREFS = "quota_monitor"
     }
@@ -60,6 +60,18 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
+                "openBatterySettings" -> launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), result)
+                "serviceRunning" -> result.success(QuotaMonitorService.instance != null)
+                "checkNow" -> {
+                    val current = activity
+                    if (current == null) { result.error("NO_ACTIVITY", "请打开 App", null); return }
+                    current.runOnUiThread { QuotaMonitorService.instance?.check(); result.success(null) }
+                }
+                "stopMonitoring" -> {
+                    val current = activity
+                    if (current == null) { result.error("NO_ACTIVITY", "请打开 App", null); return }
+                    current.runOnUiThread { QuotaMonitorService.disable(context); result.success(null) }
+                }
                 "openNotificationSettings" -> launch(if (Build.VERSION.SDK_INT >= 26) Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName) else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")), result)
                 "notificationStatus" -> result.success(notificationStatus())
                 "requestNotificationPermission" -> {
@@ -82,42 +94,78 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                     if (reset) edit.remove("anchors").remove("observedMillis")
                     edit.commit()
                     val n = notifications()
-                    if (!incoming.optBoolean("enabled")) n.cancelAll()
-                    else {
+                    if (!incoming.optBoolean("enabled")) {
+                        QuotaMonitorService.stop(context)
+                        n.cancelAll()
+                    } else {
                         // Withdraw visible content when privacy settings change.
                         if (old.optBoolean("hideDetails") != incoming.optBoolean("hideDetails")) n.cancelAll()
-                        if (!incoming.optBoolean("showStatus")) n.hideSummary()
-                        else cachedSummary(incoming, monitor().getString("lastError", "").orEmpty().isNotEmpty())
+                        cachedSummary(incoming)
                     }
-                    result.success(null)
+                    if (incoming.optBoolean("enabled")) {
+                        val current = activity
+                        if (current == null) { result.error("NO_ACTIVITY", "请打开 App 启动常驻监测", null); return }
+                        current.runOnUiThread {
+                            try {
+                                if (!n.statusAllowed()) throw IllegalStateException("status notification disabled")
+                                if (QuotaMonitorService.instance == null) QuotaMonitorService.start(context)
+                                else QuotaMonitorService.instance?.reschedule()
+                                result.success(null)
+                            } catch (_: Exception) {
+                                monitor().edit().putString("config", incoming.put("enabled", false).toString()).commit()
+                                QuotaMonitorService.stop(context)
+                                n.cancelAll()
+                                result.error("SERVICE_START", "无法启动常驻监测，请检查通知和后台运行设置", null)
+                            }
+                        }
+                    } else result.success(null)
                 }
                 "setConnectionEpoch" -> synchronized(lock) {
                     val epoch = call.arguments as String
                     if (monitor().getString("epoch", "") != epoch) {
-                        monitor().edit().putString("epoch", epoch).remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").commit()
+                        monitor().edit().putString("epoch", epoch).remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").commit()
                         context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).edit().clear().commit()
                         notifications().cancelAll()
+                        QuotaMonitorService.instance?.reschedule()
                     }
                     result.success(null)
                 }
                 "monitoringStatus" -> synchronized(lock) {
-                    result.success(notificationStatus() + mapOf("lastCheck" to monitor().getLong("lastCheck", 0), "lastError" to monitor().getString("lastError", "")))
+                    result.success(notificationStatus() + mapOf("lastCheck" to monitor().getLong("lastCheck", 0), "lastError" to monitor().getString("lastError", ""),
+                        "enabled" to config().optBoolean("enabled"), "serviceRunning" to (QuotaMonitorService.instance != null),
+                        "lastBackgroundCheck" to monitor().getLong("lastBackgroundCheck", 0),
+                        "lastBackgroundError" to monitor().getString("lastBackgroundError", ""),
+                        "backgroundStarted" to monitor().getLong("backgroundStarted", 0),
+                        "checking" to monitor().getBoolean("checking", false),
+                        "nextCheck" to monitor().getLong("nextCheck", 0), "serviceError" to monitor().getString("serviceError", ""),
+                        "overviewVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID },
+                        "overviewOngoing" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID && (it.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0 },
+                        "alertsVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.count { it.id >= 7200 },
+                        "batteryOptimized" to !context.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)))
                 }
-                "backgroundFailure" -> synchronized(lock) {
-                    if (monitor().getString("epoch", "") == call.arguments && config().optBoolean("enabled")) {
-                        monitor().edit().putLong("lastCheck", System.currentTimeMillis()).putString("lastError", "检查失败，保留上次结果；请检查服务器与 VPN").apply()
-                        val c = config()
-                        if (c.optBoolean("showStatus")) cachedSummary(c, true)
+                "backgroundStarted" -> synchronized(lock) {
+                    val args = call.arguments as Map<*, *>
+                    if (monitor().getString("epoch", "") == args["epoch"] && config().optBoolean("enabled")) {
+                        monitor().edit().putLong("backgroundStarted", System.currentTimeMillis()).putBoolean("checking", true).commit()
                     }
                     result.success(null)
                 }
-                "writeCache", "writeBackgroundCache" -> synchronized(lock) {
+                "backgroundFailure" -> synchronized(lock) {
+                    if (monitor().getString("epoch", "") == call.arguments && config().optBoolean("enabled")) {
+                        monitor().edit().putLong("lastCheck", System.currentTimeMillis()).putLong("lastBackgroundCheck", System.currentTimeMillis()).putBoolean("checking", false).putString("lastBackgroundError", "后台查询失败，请检查服务器与 VPN").putString("lastError", "检查失败，保留上次结果；请检查服务器与 VPN").apply()
+                        val c = config()
+                        cachedSummary(c)
+                    }
+                    result.success(null)
+                }
+                "writeCache", "writeBackgroundCache", "writeServiceCache" -> synchronized(lock) {
                     val args = call.arguments as Map<*, *>
-                    val background = call.method == "writeBackgroundCache"
+                    val background = call.method != "writeCache"
                     if (monitor().getString("epoch", "") != args["epoch"] || (background && !config().optBoolean("enabled"))) {
                         result.success(false); return
                     }
                     val data = JSONObject(args["snapshot"] as String)
+                    if (background) recordBackground(data)
                     val observed = data.optLong("observedMillis", 0)
                     if (observed <= monitor().getLong("observedMillis", 0)) { result.success(false); return }
                     val written = context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).edit().putString("snapshot", data.toString()).commit()
@@ -127,7 +175,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 }
                 "clearCache" -> synchronized(lock) {
                     context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).edit().clear().commit()
-                    monitor().edit().remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").commit()
+                    monitor().edit().remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").commit()
                     notifications().cancelAll()
                     result.success(null)
                 }
@@ -147,9 +195,15 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
             catch (error: Exception) { result.error("OPEN_SETTINGS", error.javaClass.simpleName, null) }
         }
     }
-    private fun cachedSummary(c: JSONObject, failed: Boolean = false) {
-        val raw = context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).getString("snapshot", null) ?: return
-        try { notifications().summary(JSONObject(raw), c.optBoolean("hideDetails"), failed) } catch (_: Exception) {}
+    private fun cachedSummary(c: JSONObject) {
+        if (c.optBoolean("enabled")) notifications().monitorSummary(QuotaMonitorService.instance != null)
+    }
+    private fun recordBackground(data: JSONObject) {
+            val rows = data.optJSONArray("providers")
+            var issues = 0
+            if (rows != null) for (i in 0 until rows.length()) issues += rows.optJSONObject(i)?.optInt("issues") ?: 0
+            monitor().edit().putLong("lastBackgroundCheck", System.currentTimeMillis()).putBoolean("checking", false)
+                .putString("lastBackgroundError", if (issues > 0) "部分账号查询失败，请打开 App 查看明细" else "").commit()
     }
     private fun process(data: JSONObject) {
         val c = config()
@@ -183,6 +237,6 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         val saved = JSONObject()
         states.forEach { (name, a) -> saved.put(name, JSONObject().put("anchor", a.anchor).put("previous", a.previous).put("cycle", a.cycle)) }
         monitor().edit().putString("anchors", saved.toString()).commit()
-        if (c.optBoolean("showStatus")) n.summary(data, c.optBoolean("hideDetails"))
+        n.monitorSummary(QuotaMonitorService.instance != null)
     }
 }
