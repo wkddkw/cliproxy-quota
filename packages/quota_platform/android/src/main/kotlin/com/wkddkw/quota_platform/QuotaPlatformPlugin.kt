@@ -61,7 +61,15 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         try {
             when (call.method) {
                 "openBatterySettings" -> launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), result)
+                "openExactAlarmSettings" -> {
+                    if (Build.VERSION.SDK_INT >= 31) launch(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")), result)
+                    else result.success(null)
+                }
                 "serviceRunning" -> result.success(QuotaMonitorService.instance != null)
+                "smokeSchedule" -> {
+                    if ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) result.notImplemented()
+                    else { QuotaMonitorService.instance?.scheduleSmokeCycle(); result.success(null) }
+                }
                 "checkNow" -> {
                     val current = activity
                     if (current == null) { result.error("NO_ACTIVITY", "请打开 App", null); return }
@@ -110,6 +118,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                                 if (!n.statusAllowed()) throw IllegalStateException("status notification disabled")
                                 if (QuotaMonitorService.instance == null) QuotaMonitorService.start(context)
                                 else if (reset || old.optInt("interval", 15) != incoming.optInt("interval", 15)) QuotaMonitorService.instance?.reschedule()
+                                else QuotaMonitorService.instance?.refreshSchedule()
                                 result.success(null)
                             } catch (_: Exception) {
                                 monitor().edit().putString("config", incoming.put("enabled", false).toString()).commit()
@@ -138,6 +147,9 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                         "backgroundStarted" to monitor().getLong("backgroundStarted", 0),
                         "checking" to monitor().getBoolean("checking", false),
                         "nextCheck" to monitor().getLong("nextCheck", 0), "serviceError" to monitor().getString("serviceError", ""),
+                        "exactAlarmAllowed" to QuotaMonitorService.exactAllowed(context),
+                        "alarmMode" to monitor().getString("alarmMode", ""),
+                        "lastTrigger" to monitor().getString("lastTrigger", ""),
                         "overviewVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID },
                         "overviewOngoing" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID && (it.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0 },
                         "alertsVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.count { it.id >= 7200 },

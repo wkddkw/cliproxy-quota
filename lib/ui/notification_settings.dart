@@ -243,6 +243,33 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
               const Text('尚未完成后台检查'),
             if ((status['nextCheck'] as num? ?? 0) > 0)
               Text('下次计划检查：${_time((status['nextCheck'] as num).toInt())}'),
+            if ((status['nextCheck'] as num? ?? 0) > 0 &&
+                (status['nextCheck'] as num) <
+                    DateTime.now().millisecondsSinceEpoch &&
+                status['checking'] != true)
+              const Text('计划已逾期，后台检查尚未执行；恢复运行后补查。'),
+            Text(
+              status['alarmMode'] == 'exact'
+                  ? '定时唤醒：已使用精确闹钟'
+                  : '定时唤醒：系统可延迟，需允许闹钟和提醒',
+            ),
+            if (status['exactAlarmAllowed'] != true)
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        try {
+                          await quotaChannel.invokeMethod<void>(
+                            'openExactAlarmSettings',
+                          );
+                        } catch (_) {
+                          if (mounted) {
+                            setState(() => message = '请在系统特殊应用权限中允许闹钟和提醒');
+                          }
+                        }
+                      },
+                child: const Text('允许闹钟和提醒'),
+              ),
             if ('${status['lastBackgroundError'] ?? ''}'.isNotEmpty)
               Text(
                 '${status['lastBackgroundError']}',
@@ -272,7 +299,7 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
           ],
           const SizedBox(height: 10),
           const Text(
-            '开启后立即检查，再按所选间隔计划运行。锁屏省电、强行停止或 VPN 断开仍可能延迟。Android 15+ 数据同步前台服务有后台运行时限，到时会停常驻服务并保留系统定期检查，打开 App 可恢复。Android 14+ 系统允许单独划掉常驻通知，划掉不会停止服务；要停止请关闭监测或点通知里的停止按钮。流体云尚未接入。',
+            '开启后立即检查，再按所选间隔计划运行。允许系统「闹钟和提醒」后使用精确唤醒，未授权时系统可延迟；亮屏或回到 App 时会补查逾期任务。厂商后台限制、强行停止或 VPN 断开仍可能影响检查。Android 15+ 数据同步前台服务有后台运行时限，到时会停常驻服务并保留系统定期检查，打开 App 可恢复。Android 14+ 系统允许单独划掉常驻通知，划掉不会停止服务；要停止请关闭监测或点通知里的停止按钮。流体云尚未接入。',
             style: TextStyle(fontSize: 12, height: 1.6),
           ),
         ],

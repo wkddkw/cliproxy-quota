@@ -104,6 +104,8 @@ void main() {
           expect(first['overviewVisible'], true);
           expect(first['overviewOngoing'], true);
           expect(first['lastBackgroundError'], '');
+          expect(first['exactAlarmAllowed'], true);
+          expect(first['alarmMode'], 'exact');
           expect(first['alertsVisible'], 0);
           final delay =
               (first['nextCheck'] as num) -
@@ -113,7 +115,10 @@ void main() {
           await Monitoring.configureNative(storage.monitoringSettings);
           await Future<void>.delayed(const Duration(milliseconds: 300));
           expect((await status())['nextCheck'], first['nextCheck']);
-          await quotaChannel.invokeMethod<void>('checkNow');
+          // Same scheduling path, with a shorter delay restricted to debug builds.
+          // CI locks the screen and forces Doze when it sees this marker.
+          debugPrint('QUOTA_SMOKE_FORCE_IDLE');
+          await quotaChannel.invokeMethod<void>('smokeSchedule');
           final second = await waitFor(
             (s) =>
                 (s['lastBackgroundCheck'] as num? ?? 0) >
@@ -122,6 +127,9 @@ void main() {
                 s['checking'] == false,
           );
           expect(queries, 2);
+          expect(second['lastTrigger'], anyOf('timer', 'alarm'));
+          expect(second['alarmMode'], 'exact');
+          debugPrint('QUOTA_SMOKE_EXIT_IDLE');
           expect(second['overviewOngoing'], true);
           final backgroundTime = second['lastBackgroundCheck'];
           await storage.saveSnapshot(

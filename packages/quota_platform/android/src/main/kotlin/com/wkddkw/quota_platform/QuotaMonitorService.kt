@@ -6,12 +6,14 @@ import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -25,6 +27,7 @@ class QuotaMonitorService : Service() {
         val controlLock = Any()
         const val STOP = "com.wkddkw.cliproxy_quota.STOP_MONITOR"
         const val CHECK = "com.wkddkw.cliproxy_quota.CHECK_QUOTA"
+        fun exactAllowed(context: Context) = Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
         @Volatile var instance: QuotaMonitorService? = null
             private set
         fun start(context: Context) {
@@ -50,7 +53,10 @@ class QuotaMonitorService : Service() {
     private var checking = false
     private var closed = false
     private var wake: PowerManager.WakeLock? = null
-    private val tick = Runnable { check() }
+    private val tick = Runnable { checkDue("timer") }
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent?) { refreshSchedule("screen-on") }
+    }
     private val checkWatchdog = Runnable { if (checking) pause("后台查询超时，打开 App 恢复；系统定期检查继续") }
     private fun prefs() = getSharedPreferences("quota_monitor", MODE_PRIVATE)
     private fun config() = try { JSONObject(prefs().getString("config", "{}") ?: "{}") } catch (_: Exception) { JSONObject() }
@@ -58,6 +64,9 @@ class QuotaMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        val filter = IntentFilter(Intent.ACTION_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(screenReceiver, filter)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) {
@@ -76,7 +85,7 @@ class QuotaMonitorService : Service() {
             return START_NOT_STICKY
         }
         prefs().edit().remove("serviceError").putLong("serviceStarted", System.currentTimeMillis()).commit()
-        if (engine == null) initializeEngine() else if (ready) check()
+        if (engine == null) initializeEngine() else if (ready) check("manual")
         // A system kill may restart the existing service. Force-stop is respected.
         return START_STICKY
     }
@@ -112,13 +121,13 @@ class QuotaMonitorService : Service() {
             } catch (_: Exception) { pause("后台查询引擎启动失败，打开 App 恢复监测") }
         }
     }
-    fun check() {
+    fun check(source: String = "startup") {
         if (closed || !ready || checking) return
         if (!config().optBoolean("enabled")) { stopSelf(); return }
         cancelSchedule()
         checking = true
         handler.postDelayed(checkWatchdog, 5 * 60 * 1000L)
-        prefs().edit().putBoolean("checking", true).putLong("backgroundStarted", System.currentTimeMillis()).commit()
+        prefs().edit().putBoolean("checking", true).putLong("backgroundStarted", System.currentTimeMillis()).putString("lastTrigger", source).commit()
         val power = getSystemService(PowerManager::class.java)
         wake = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:quota-check").apply { acquire(5 * 60 * 1000L) }
         updateNotification()
@@ -131,23 +140,52 @@ class QuotaMonitorService : Service() {
     fun reschedule() {
         handler.post { if (!closed && !checking && ready) schedule(); updateNotification() }
     }
-    private fun schedule() {
+    fun refreshSchedule(source: String = "app-resume") {
+        handler.post {
+            if (closed || checking || !ready) return@post
+            val target = prefs().getLong("nextElapsed", 0)
+            if (target <= 0 || target <= SystemClock.elapsedRealtime()) check(source)
+            else { armSchedule(target); updateNotification() }
+        }
+    }
+    fun checkDue(source: String) {
+        if (closed || checking || !ready) return
+        val target = prefs().getLong("nextElapsed", 0)
+        if (target > 0 && target <= SystemClock.elapsedRealtime()) check(source)
+    }
+    // The shortened cycle is available only in debuggable builds for device tests.
+    fun scheduleSmokeCycle() {
+        require((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+        handler.post { if (!closed && ready && !checking) { schedule(10000L); updateNotification() } }
+    }
+    private fun schedule(smokeDelay: Long? = null) {
         if (closed) return
         prefs().edit().putBoolean("checking", false).commit()
         val minutes = config().optInt("interval", 15).let { if (it in listOf(15, 30, 60)) it else 15 }
-        val delay = minutes * 60 * 1000L
-        prefs().edit().putLong("nextCheck", System.currentTimeMillis() + delay).commit()
+        val delay = smokeDelay ?: minutes * 60 * 1000L
+        val target = SystemClock.elapsedRealtime() + delay
+        prefs().edit().putLong("nextCheck", System.currentTimeMillis() + delay).putLong("nextElapsed", target).commit()
+        armSchedule(target)
+    }
+    private fun armSchedule(target: Long) {
         handler.removeCallbacks(tick)
-        handler.postDelayed(tick, delay)
-        // An inexact idle alarm can wake a sleeping device. No exact-alarm permission.
+        handler.postDelayed(tick, (target - SystemClock.elapsedRealtime()).coerceAtLeast(0))
         val alarm = getSystemService(AlarmManager::class.java)
-        alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + delay, alarmIntent())
+        var exact = false
+        if (exactAllowed(this)) {
+            try {
+                alarm.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, target, alarmIntent())
+                exact = true
+            } catch (_: SecurityException) { /* Authorization can change between the check and scheduling. */ }
+        }
+        if (!exact) alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, target, alarmIntent())
+        prefs().edit().putString("alarmMode", if (exact) "exact" else "inexact").commit()
     }
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 7180, Intent(this, QuotaCheckReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelSchedule() {
         handler.removeCallbacks(tick)
         getSystemService(AlarmManager::class.java).cancel(alarmIntent())
-        prefs().edit().remove("nextCheck").commit()
+        prefs().edit().remove("nextCheck").remove("nextElapsed").commit()
     }
     private fun releaseWake() { wake?.let { if (it.isHeld) it.release() }; wake = null }
     private fun updateNotification() { if (!closed) QuotaNotifications(this).monitorSummary(true) }
@@ -162,6 +200,7 @@ class QuotaMonitorService : Service() {
     }
     override fun onDestroy() {
         closed = true
+        unregisterReceiver(screenReceiver)
         cancelSchedule()
         handler.removeCallbacksAndMessages(null)
         releaseWake()
@@ -181,6 +220,6 @@ class QuotaMonitorService : Service() {
 class QuotaCheckReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         // Never start a new foreground service from an idle alarm.
-        QuotaMonitorService.instance?.check()
+        QuotaMonitorService.instance?.checkDue("alarm")
     }
 }

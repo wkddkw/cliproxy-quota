@@ -1,6 +1,6 @@
 # 设备与通知兼容性
 
-最后更新：2026-10-03，App v0.1.5。
+最后更新：2026-10-03，App v0.1.6。
 
 当前版本关闭 Android / iOS 桌面小组件及添加入口，优先保留整洁的 App 和 Android 标准通知。
 
@@ -33,6 +33,8 @@ v0.1.1 起采用固定预览签名，v0.1.3 可覆盖 v0.1.1 / v0.1.2 并保留�
 
 v0.1.5 使用真实 `dataSync` 前台服务和 ongoing 通知，停止监测后移除通知。通知有立即检查、停止监测入口。Android 14 起，普通常驻通知仍可被单独划掉，清除全部和锁屏时有不同规则；划掉不会停止服务。[Android 官方说明](https://developer.android.com/about/versions/14/behavior-changes-all#non-dismissable-notifications)。不能保证各厂商表现与 v2rayNG 一致。
 
-Android 15+ 对 dataSync 前台服务设置后台累计 6 小时的限制，回到 App 后系统重置计时。服务在 `onTimeout` 中正常停止，保留 WorkManager 备用调度，状态页说明暂停原因，打开 App 可恢复。[前台服务时限](https://developer.android.com/develop/background-work/services/fgs/timeout)。没有使用 VPN、媒体、通话或其他不符合用途的服务类型规避限制。非精确唤醒与电池限制意味着不能承诺每次严格准点；系统电池设置入口可检查后台限制。
+Android 15+ 对 dataSync 前台服务设置后台累计 6 小时的限制，回到 App 后系统重置计时。服务在 `onTimeout` 中正常停止，保留 WorkManager 备用调度，状态页说明暂停原因，打开 App 可恢复。[前台服务时限](https://developer.android.com/develop/background-work/services/fgs/timeout)。没有使用 VPN、媒体、通话或其他不符合用途的服务类型规避限制。
+
+v0.1.6 修正 v0.1.5 非精确闹钟在锁屏后可延迟的问题。Android 12+ 在 App 点击「允许闹钟和提醒」进入系统特殊权限，授权后返回 App，定时方式应显示「已使用精确闹钟」。未授权时明确显示系统可延迟。亮屏或回到 App 会检查逾期计划并补查，未逾期时保持原计划。精确闹钟授权不替代厂商后台运行、电池与网络权限，也不能在强行停止 App 后继续运行。
 
 Android 35 模拟器用于验证真实后台 Flutter 引擎、通知 flags、限额查询、停止同步；不替代一加 13T / ColorOS 16 真机验证。

@@ -81,10 +81,11 @@ class QuotaNotifications(private val context: Context) {
         val body = if (hide) "监测已开启，打开 App 查看" else lines.joinToString(" · ").ifEmpty { "正在建立限额基准" }
         val b = builder(STATUS_CHANNEL, title, body).setOnlyAlertOnce(true).setOngoing(true).setAutoCancel(false)
         val time = if (last > 0) "最近后台检查：${time(last)}" else "尚未完成后台检查"
-        val progress = if (checking) "正在查询限额" else if (running && next > 0) "下次计划：${time(next)}" else "由系统安排下次检查"
+        val progress = if (checking) "正在查询限额" else if (running && next > 0 && next < System.currentTimeMillis()) "计划已延迟：${time(next)}，等待系统唤醒" else if (running && next > 0) "下次计划：${time(next)}" else "由系统安排下次检查"
         b.setStyle(Notification.InboxStyle().apply {
             lines.forEach { addLine(it) }
             addLine(time); addLine(progress)
+            if (running) addLine(if (state.getString("alarmMode", "") == "exact") "已启用精确唤醒" else "系统可延迟检查，请在 App 允许闹钟和提醒")
             val error = state.getString("lastBackgroundError", "").orEmpty()
             if (error.isNotEmpty()) addLine(error)
             if (!running) addLine(state.getString("serviceError", "常驻服务未运行，打开 App 恢复").orEmpty())

@@ -114,4 +114,50 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(quotaChannel, null);
   });
+  testWidgets(
+    'overdue monitoring explains alarm permission and opens settings',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'monitoring': jsonEncode(
+          const MonitoringSettings(enabled: true).toJson(),
+        ),
+      });
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(quotaChannel, (call) async {
+            calls.add(call.method);
+            if (call.method == 'monitoringStatus') {
+              return {
+                'enabled': true,
+                'serviceRunning': true,
+                'alarmMode': 'inexact',
+                'exactAlarmAllowed': false,
+                'nextCheck':
+                    DateTime.now().millisecondsSinceEpoch - 8 * 60 * 1000,
+              };
+            }
+            return null;
+          });
+      final storage = AppStorage(await SharedPreferences.getInstance());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: NotificationSettingsPanel(storage: storage),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('计划已逾期'), findsOneWidget);
+      expect(find.text('定时唤醒：系统可延迟，需允许闹钟和提醒'), findsOneWidget);
+      await tester.ensureVisible(find.text('允许闹钟和提醒'));
+      await tester.tap(find.text('允许闹钟和提醒'));
+      await tester.pumpAndSettle();
+      expect(calls, contains('openExactAlarmSettings'));
+      await tester.pumpWidget(const SizedBox.shrink());
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(quotaChannel, null);
+    },
+  );
 }
