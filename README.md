@@ -2,13 +2,20 @@
 
 [![Build and test](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml/badge.svg)](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml)
 
-只读的 CLIProxyAPI 手机 App，支持 Android 和 iPhone。按供应商归并账号、显示最低剩余额度，点击供应商查看认证文件和周期明细；Android 可按消耗百分比提醒。
+在手机上查看自己的 CLIProxyAPI 账号额度：主动刷新官方限额、按供应商显示最低剩余，点开查看账号与周期明细。Android 支持可选间隔的后台刷新、百分比消耗提醒，以及应用内检查更新、下载和覆盖安装；iPhone 支持额度查看。
 
-![连接设置、供应商总览、认证文件明细和通知示意](docs/images/app-preview.png)
+![v0.1.8：连接、额度总览、周期明细、定时刷新与应用更新示意](docs/images/app-preview-v0.1.8.png)
 
-*界面示意，使用示例数据；通知样式和悬浮效果由手机系统决定。*
+*v0.1.8 界面示意，使用示例数据；通知样式由手机系统决定。说明收进问号弹窗。*
 
 **[下载 Android 预览版 v0.1.8](https://github.com/wkddkw/cliproxy-quota/releases/tag/v0.1.8) · [构建记录](https://github.com/wkddkw/cliproxy-quota/actions) · [接口说明](docs/api-contract.md)**
+
+## 当前版本
+
+- **主动查额度**：下拉刷新查询官方限额，多账号显示最低剩余。
+- **定时刷新**：Android 可选 15 / 30 / 60 分钟，系统后台任务调度，省电限制可能延迟。
+- **百分比提醒**：默认每下降 5 个百分点通知，可自定义阈值；不显示常驻概览。
+- **应用内更新**：设置里检查新版、下载 APK、打开系统安装器；覆盖安装保留配置。
 
 ## 使用
 

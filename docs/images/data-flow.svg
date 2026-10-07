@@ -7,5 +7,5 @@
 <rect x="735" y="50" width="280" height="130" rx="20" fill="white"/><text x="875" y="93" font-size="22" font-weight="600">本机汇总缓存</text><text x="875" y="125" font-size="15">供应商 · 账号数 · 百分比</text><text x="875" y="151" font-size="13" fill="#536b60">不含密钥、邮箱或认证文件名</text>
 <rect x="1085" y="50" width="280" height="130" rx="20" fill="#23846b"/><text x="1225" y="93" font-size="22" font-weight="600" fill="white">Android 通知</text><text x="1225" y="125" font-size="15" fill="white">阈值提醒 · 可隐藏内容</text><text x="1225" y="151" font-size="13" fill="#d9e8df">后台检查 · 系统调度</text>
 <g stroke="#23846b" stroke-width="3" marker-end="url(#arrow)"><path d="M325 115 H375"/><path d="M675 115 H725"/><path d="M1025 115 H1075"/></g>
-<text x="700" y="218" font-size="13" fill="#536b60">推荐通过 Tailscale 或家庭 VPN 连接；手机只请求自己的 CLIProxyAPI。</text>
+<text x="700" y="218" font-size="13" fill="#536b60">额度查询通过自己的 CLIProxyAPI；应用更新另外从项目 GitHub 发布页下载。</text>
 </g></svg>

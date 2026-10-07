@@ -2,7 +2,7 @@
 <g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
 <rect x="0" y="0" width="1400" height="800" rx="20" fill="#edf3ef"/>
 <text x="45" y="58" font-size="30" fill="#163c30" font-weight="700">CLIProxy 限额</text>
-<text x="45" y="88" font-size="16" fill="#536b60" font-weight="400">自己的服务 · 最低剩余 · 手机查看 · 消耗提醒</text>
+<text x="45" y="88" font-size="16" fill="#536b60" font-weight="400">主动查额度 · 定时刷新 · 百分比提醒 · 应用内更新</text>
 <text x="1110" y="64" font-size="14" fill="#536b60" font-weight="400">界面示意 / 示例数据</text>
 <rect x="45" y="122" width="298" height="575" rx="34" fill="#163c30"/>
 <rect x="52" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
@@ -28,7 +28,7 @@
 <rect x="387" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
 <rect x="487" y="138" width="84" height="19" rx="10" fill="#163c30"/>
 <text x="405" y="152" font-size="10" fill="#163c30" font-weight="600">9:41</text>
-<text x="404" y="197" font-size="16" fill="#163c30" font-weight="600">更新于 10-02 12:00</text>
+<text x="404" y="197" font-size="16" fill="#163c30" font-weight="600">更新于 10-07 09:41</text>
 <rect x="490" y="675" width="78" height="4" rx="2" fill="#163c30"/>
 <text x="380" y="735" font-size="17" fill="#163c30" font-weight="600">02  供应商总览</text>
 <text x="404" y="247" font-size="24" fill="#163c30" font-weight="700">剩余，心中有数。</text>
@@ -89,18 +89,35 @@
 <text x="747" y="578" font-size="11" fill="#536b60" font-weight="400">剩余</text>
 <text x="880" y="578" font-size="18" fill="#163c30" font-weight="600">$105.00</text>
 <text x="739" y="647" font-size="10" fill="#536b60" font-weight="400">不同周期分开展示；绝对额度按接口返回</text>
-<rect x="1050" y="122" width="305" height="575" rx="28" fill="#dfeae2"/>
-<text x="1072" y="165" font-size="15" fill="#536b60" font-weight="400">Android 通知</text>
-<rect x="1067" y="206" width="271" height="145" rx="24" fill="#f5f7f5"/>
-<text x="1085" y="238" font-size="15" fill="#163c30" font-weight="600">GPT 限额消耗提醒</text>
-<text x="1085" y="274" font-size="24" fill="#163c30" font-weight="700">剩余 35%</text>
-<text x="1085" y="306" font-size="12" fill="#536b60" font-weight="400">较上次基准下降 5 个百分点</text>
-<rect x="1067" y="376" width="271" height="108" rx="24" fill="#f5f7f5"/>
-<text x="1085" y="408" font-size="15" fill="#163c30" font-weight="600">CLIProxy 常驻监测</text>
-<text x="1085" y="444" font-size="12" fill="#163c30" font-weight="400">GPT 35% · Claude 60% · Grok 42%</text>
-<text x="1072" y="537" font-size="14" fill="#163c30" font-weight="600">默认 5%，可调整提醒阈值</text>
-<text x="1072" y="569" font-size="13" fill="#536b60" font-weight="400">监测开启显示概览，停止后关闭</text>
-<text x="1072" y="599" font-size="11" fill="#536b60" font-weight="400">立即检查 · 约每 15 分钟计划检查</text>
-<text x="1072" y="629" font-size="12" fill="#536b60" font-weight="400">普通通知；流体云尚未接入</text>
-<text x="1050" y="735" font-size="17" fill="#163c30" font-weight="600">04  消耗通知 / 示例效果</text>
+<rect x="1050" y="122" width="298" height="575" rx="34" fill="#163c30"/>
+<rect x="1057" y="129" width="284" height="561" rx="28" fill="#f5f7f5"/>
+<rect x="1157" y="138" width="84" height="19" rx="10" fill="#163c30"/>
+<text x="1075" y="152" font-size="10" fill="#163c30" font-weight="600">9:41</text>
+<text x="1074" y="197" font-size="16" fill="#163c30" font-weight="600">设置</text>
+<rect x="1068" y="220" width="262" height="168" rx="14" fill="#ffffff"/>
+<text x="1082" y="248" font-size="15" fill="#163c30" font-weight="600">限额通知</text>
+<text x="1296" y="248" font-size="16" fill="#536b60" font-weight="400">？</text>
+<text x="1082" y="280" font-size="13" fill="#163c30" font-weight="400">定时刷新</text>
+<rect x="1264" y="265" width="46" height="23" rx="12" fill="#23846b"/>
+<circle cx="1298" cy="276.5" r="8" fill="white"/>
+<rect x="1082" y="299" width="72" height="29" rx="15" fill="#d9e8df"/>
+<text x="1091" y="319" font-size="11" fill="#163c30" font-weight="600">15 分钟</text>
+<rect x="1159" y="299" width="72" height="29" rx="15" fill="#f5f7f5"/>
+<text x="1168" y="319" font-size="11" fill="#163c30" font-weight="400">30 分钟</text>
+<rect x="1236" y="299" width="72" height="29" rx="15" fill="#f5f7f5"/>
+<text x="1245" y="319" font-size="11" fill="#163c30" font-weight="400">60 分钟</text>
+<text x="1082" y="352" font-size="12" fill="#163c30" font-weight="400">每下降 5 个百分点提醒</text>
+<text x="1082" y="376" font-size="10" fill="#536b60" font-weight="400">最近后台检查  09:41</text>
+<rect x="1068" y="403" width="262" height="99" rx="14" fill="#ffffff"/>
+<text x="1082" y="432" font-size="15" fill="#163c30" font-weight="600">应用更新 · v0.1.8</text>
+<text x="1296" y="432" font-size="16" fill="#536b60" font-weight="400">？</text>
+<rect x="1082" y="446" width="104" height="35" rx="18" fill="#d9e8df"/>
+<text x="1104" y="469" font-size="12" fill="#163c30" font-weight="600">检查更新</text>
+<text x="1074" y="531" font-size="11" fill="#536b60" font-weight="400">达到阈值时的通知示意</text>
+<rect x="1068" y="545" width="262" height="88" rx="18" fill="#dfeae2"/>
+<text x="1082" y="569" font-size="13" fill="#163c30" font-weight="600">GPT 限额消耗提醒</text>
+<text x="1082" y="595" font-size="19" fill="#163c30" font-weight="700">剩余 35%</text>
+<text x="1082" y="619" font-size="10" fill="#536b60" font-weight="400">较上次基准下降 5 个百分点</text>
+<rect x="1160" y="675" width="78" height="4" rx="2" fill="#163c30"/>
+<text x="1050" y="735" font-size="17" fill="#163c30" font-weight="600">04  刷新 / 通知 / 应用更新</text>
 </g></svg>

@@ -38,7 +38,7 @@ parts.append('<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" 
 parts.append('<g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">')
 rect(0, 0, 1400, 800, '#edf3ef', 20)
 text(45, 58, 'CLIProxy 限额', 30, weight=700)
-text(45, 88, '自己的服务 · 最低剩余 · 手机查看 · 消耗提醒', 16, '#536b60')
+text(45, 88, '主动查额度 · 定时刷新 · 百分比提醒 · 应用内更新', 16, '#536b60')
 text(1110, 64, '界面示意 / 示例数据', 14, '#536b60')
 
 x = 45
@@ -56,7 +56,7 @@ text(x + 24, 615, '更多  ⌄', 14)
 text(x + 24, 652, '端口与完整地址在「更多」中设置', 11, '#536b60')
 
 x = 380
-phone(x, '更新于 10-02 12:00', '02')
+phone(x, '更新于 10-07 09:41', '02')
 text(x + 24, 247, '剩余，心中有数。', 24, weight=700)
 text(x + 24, 276, '按供应商查看 · 多账号取最低剩余', 11, '#536b60')
 for i, (name, symbol, count, percent) in enumerate([('GPT', 'G', 2, 5), ('Claude', '✳', 3, 60), ('Grok', '𝕏', 1, 42), ('Other', 'O', 1, None)]):
@@ -93,23 +93,37 @@ text(x + 165, 578, '$105.00', 18, weight=600)
 text(x + 24, 647, '不同周期分开展示；绝对额度按接口返回', 10, '#536b60')
 
 x = 1050
-rect(x, 122, 305, 575, '#dfeae2', 28)
-text(x + 22, 165, 'Android 通知', 15, '#536b60')
-rect(x + 17, 206, 271, 145, '#f5f7f5', 24)
-text(x + 35, 238, 'GPT 限额消耗提醒', 15, weight=600)
-text(x + 35, 274, '剩余 35%', 24, weight=700)
-text(x + 35, 306, '较上次基准下降 5 个百分点', 12, '#536b60')
-rect(x + 17, 376, 271, 108, '#f5f7f5', 24)
-text(x + 35, 408, 'CLIProxy 常驻监测', 15, weight=600)
-text(x + 35, 444, 'GPT 35% · Claude 60% · Grok 42%', 12)
-text(x + 22, 537, '默认 5%，可调整提醒阈值', 14, weight=600)
-text(x + 22, 569, '监测开启显示概览，停止后关闭', 13, '#536b60')
-text(x + 22, 599, '立即检查 · 约每 15 分钟计划检查', 11, '#536b60')
-text(x + 22, 629, '普通通知；流体云尚未接入', 12, '#536b60')
-text(x, 735, '04  消耗通知 / 示例效果', 17, weight=600)
+rect(x, 122, 298, 575, '#163c30', 34)
+rect(x + 7, 129, 284, 561, '#f5f7f5', 28)
+rect(x + 107, 138, 84, 19, '#163c30', 10)
+text(x + 25, 152, '9:41', 10, weight=600)
+text(x + 24, 197, '设置', 16, weight=600)
+rect(x + 18, 220, 262, 168, '#ffffff', 14)
+text(x + 32, 248, '限额通知', 15, weight=600)
+text(x + 246, 248, '？', 16, '#536b60')
+text(x + 32, 280, '定时刷新', 13)
+rect(x + 214, 265, 46, 23, '#23846b', 12)
+parts.append(f'<circle cx="{x + 248}" cy="276.5" r="8" fill="white"/>')
+for offset, label, selected in [(32, '15 分钟', True), (109, '30 分钟', False), (186, '60 分钟', False)]:
+    rect(x + offset, 299, 72, 29, '#d9e8df' if selected else '#f5f7f5', 15)
+    text(x + offset + 9, 319, label, 11, weight=600 if selected else 400)
+text(x + 32, 352, '每下降 5 个百分点提醒', 12)
+text(x + 32, 376, '最近后台检查  09:41', 10, '#536b60')
+rect(x + 18, 403, 262, 99, '#ffffff', 14)
+text(x + 32, 432, '应用更新 · v0.1.8', 15, weight=600)
+text(x + 246, 432, '？', 16, '#536b60')
+rect(x + 32, 446, 104, 35, '#d9e8df', 18)
+text(x + 54, 469, '检查更新', 12, weight=600)
+text(x + 24, 531, '达到阈值时的通知示意', 11, '#536b60')
+rect(x + 18, 545, 262, 88, '#dfeae2', 18)
+text(x + 32, 569, 'GPT 限额消耗提醒', 13, weight=600)
+text(x + 32, 595, '剩余 35%', 19, weight=700)
+text(x + 32, 619, '较上次基准下降 5 个百分点', 10, '#536b60')
+rect(x + 110, 675, 78, 4, '#163c30', 2)
+text(x, 735, '04  刷新 / 通知 / 应用更新', 17, weight=600)
 parts.append('</g></svg>')
 (output / 'app-preview.svg').write_text('\n'.join(parts))
-subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'app-preview.png'), str(output / 'app-preview.svg')], check=True)
+subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'app-preview-v0.1.8.png'), str(output / 'app-preview.svg')], check=True)
 
 flow = '''<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="240" viewBox="0 0 1400 240">
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#23846b"/></marker></defs>
@@ -120,7 +134,7 @@ flow = '''<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="240" view
 <rect x="735" y="50" width="280" height="130" rx="20" fill="white"/><text x="875" y="93" font-size="22" font-weight="600">本机汇总缓存</text><text x="875" y="125" font-size="15">供应商 · 账号数 · 百分比</text><text x="875" y="151" font-size="13" fill="#536b60">不含密钥、邮箱或认证文件名</text>
 <rect x="1085" y="50" width="280" height="130" rx="20" fill="#23846b"/><text x="1225" y="93" font-size="22" font-weight="600" fill="white">Android 通知</text><text x="1225" y="125" font-size="15" fill="white">阈值提醒 · 可隐藏内容</text><text x="1225" y="151" font-size="13" fill="#d9e8df">后台检查 · 系统调度</text>
 <g stroke="#23846b" stroke-width="3" marker-end="url(#arrow)"><path d="M325 115 H375"/><path d="M675 115 H725"/><path d="M1025 115 H1075"/></g>
-<text x="700" y="218" font-size="13" fill="#536b60">推荐通过 Tailscale 或家庭 VPN 连接；手机只请求自己的 CLIProxyAPI。</text>
+<text x="700" y="218" font-size="13" fill="#536b60">额度查询通过自己的 CLIProxyAPI；应用更新另外从项目 GitHub 发布页下载。</text>
 </g></svg>'''
 (output / 'data-flow.svg').write_text(flow)
 subprocess.run(['rsvg-convert', '-w', '2100', '-o', str(output / 'data-flow.png'), str(output / 'data-flow.svg')], check=True)
