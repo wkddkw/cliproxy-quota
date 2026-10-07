@@ -103,7 +103,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                         "lastBackgroundCheck" to monitor().getLong("lastBackgroundCheck", 0),
                         "lastBackgroundError" to monitor().getString("lastBackgroundError", ""),
                         "checking" to monitor().getBoolean("checking", false),
-                        "scheduledJobIds" to context.getSystemService(android.app.job.JobScheduler::class.java).allPendingJobs.filter { it.service.className == "androidx.work.impl.background.systemjob.SystemJobService" }.map { it.id },
+                        "periodicIntervals" to androidx.work.WorkManager.getInstance(context).getWorkInfosForUniqueWork("quota-monitor-v1").get(5, java.util.concurrent.TimeUnit.SECONDS).filter { !it.state.isFinished }.map { it.periodicityInfo?.repeatIntervalMillis ?: 0L },
                         "overviewVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID },
                         "overviewOngoing" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.any { it.id == QuotaNotifications.STATUS_ID && (it.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0 },
                         "alertsVisible" to context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.count { it.id >= 7200 },

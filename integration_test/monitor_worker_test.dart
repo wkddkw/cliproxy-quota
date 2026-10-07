@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
 import 'package:cliproxy_quota/core/background.dart';
 import 'package:cliproxy_quota/core/connection.dart';
 import 'package:cliproxy_quota/core/models.dart';
@@ -101,12 +102,22 @@ void main() {
           expect(first['overviewOngoing'], false);
           expect(first['lastBackgroundError'], '');
           expect(first['alertsVisible'], 0);
-          final scheduled = await waitFor(
-            (s) => (s['scheduledJobIds'] as List).isNotEmpty,
+          await waitFor(
+            (s) => (s['periodicIntervals'] as List).contains(15 * 60 * 1000),
           );
-          // Force the actual WorkManager job and verify its independent engine.
-          debugPrint(
-            'QUOTA_SMOKE_RUN_JOB:${(scheduled['scheduledJobIds'] as List).first}',
+          await storage.saveMonitoring(
+            const MonitoringSettings(enabled: true, interval: 30),
+          );
+          await waitFor(
+            (s) => (s['periodicIntervals'] as List).contains(30 * 60 * 1000),
+          );
+          // Request the same real background worker without waiting 30 minutes.
+          // Periodic registration is checked separately through WorkManager.
+          await Workmanager().registerOneOffTask(
+            'quota-monitor-smoke',
+            'quota-monitor',
+            existingWorkPolicy: ExistingWorkPolicy.keep,
+            constraints: Constraints(networkType: NetworkType.connected),
           );
           final second = await waitFor(
             (s) =>
@@ -140,7 +151,7 @@ void main() {
           await waitFor(
             (s) =>
                 s['enabled'] == false &&
-                (s['scheduledJobIds'] as List).isEmpty &&
+                (s['periodicIntervals'] as List).isEmpty &&
                 s['overviewVisible'] == false,
           );
           await prefs.reload();
@@ -148,6 +159,7 @@ void main() {
           expect(storage.settings, isNotNull);
           expect(await storage.readKey(), 'fake-key');
         } finally {
+          await Workmanager().cancelByUniqueName('quota-monitor-smoke');
           await storage.clear();
           await server.close(force: true);
         }
