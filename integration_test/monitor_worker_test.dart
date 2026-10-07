@@ -164,6 +164,8 @@ void main() {
           expect(storage.settings, isNotNull);
           expect(await storage.readKey(), 'fake-key');
         } finally {
+          debugPrint('QUOTA_SMOKE_FOREGROUND');
+          await waitFor((s) => s['activityVisible'] == true);
           await Workmanager().cancelByUniqueName('quota-monitor-smoke');
           await storage.clear();
           await server.close(force: true);
