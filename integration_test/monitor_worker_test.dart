@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,6 +84,27 @@ void main() {
           await request.response.close();
         });
         try {
+          final installed = await quotaChannel.invokeMapMethod<String, dynamic>(
+            'appVersion',
+          );
+          expect(installed!['version'], '0.1.8');
+          expect(
+            (await quotaChannel.invokeMapMethod<String, dynamic>(
+              'updateStatus',
+            ))!['state'],
+            'idle',
+          );
+          await expectLater(
+            quotaChannel.invokeMethod<int>('startUpdate', {
+              'version': '0.1.9',
+              'url': 'http://evil.example/update.apk',
+            }),
+            throwsA(isA<PlatformException>()),
+          );
+          await expectLater(
+            quotaChannel.invokeMethod<String>('installUpdate'),
+            throwsA(isA<PlatformException>()),
+          );
           // CI grants POST_NOTIFICATIONS once Flutter installs the debug app.
           await waitFor((s) => s['allowed'] == true);
           await initializeAndroidMonitoring(storage);

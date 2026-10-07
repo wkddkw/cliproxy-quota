@@ -60,6 +60,19 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
+                "appVersion" -> result.success(AppUpdates(context).version())
+                "startUpdate" -> result.success(AppUpdates(context).start(call.arguments as Map<*, *>))
+                "updateStatus" -> result.success(AppUpdates(context).status())
+                "cancelUpdate" -> { AppUpdates(context).cancel(); result.success(null) }
+                "installUpdate" -> {
+                    val current = activity
+                    if (current == null) { result.error("NO_ACTIVITY", "请打开 App 安装更新", null); return }
+                    val (state, intent) = AppUpdates(context).installIntent()
+                    current.runOnUiThread {
+                        try { current.startActivity(intent); result.success(state) }
+                        catch (_: Exception) { result.error("INSTALL_OPEN", "无法打开系统安装页面", null) }
+                    }
+                }
                 "openBatterySettings" -> launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), result)
                 "openNotificationSettings" -> launch(if (Build.VERSION.SDK_INT >= 26) Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName) else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")), result)
                 "notificationStatus" -> result.success(notificationStatus())
@@ -146,7 +159,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 }
                 else -> result.notImplemented()
             }
-        } catch (error: Exception) { result.error("QUOTA_PLATFORM", error.javaClass.simpleName, null) }
+        } catch (error: Exception) { result.error("QUOTA_PLATFORM", if (call.method in listOf("startUpdate", "installUpdate", "cancelUpdate")) error.message ?: "更新操作失败" else error.javaClass.simpleName, null) }
     }
     private fun notificationStatus(): Map<String, Any> {
         val n = notifications()

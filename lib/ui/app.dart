@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'notification_settings.dart';
 import 'help_button.dart';
+import 'update_settings.dart';
 import 'quota_period_view.dart';
 import '../core/quota_details.dart';
 import 'package:http/http.dart' as http;
@@ -386,6 +387,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               if (Platform.isAndroid)
                 NotificationSettingsPanel(storage: widget.storage),
+              if (Platform.isAndroid) const UpdateSettingsPanel(),
             ],
           ),
         ),
