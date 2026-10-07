@@ -28,11 +28,11 @@ Future<Map<String, dynamic>> waitFor(
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
-    'foreground engine queries, keeps an ongoing overview, alerts and stops',
+    'scheduled worker queries and alerts without an ongoing notification',
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: Text('Quota service smoke test')),
+          home: Scaffold(body: Text('Quota worker smoke test')),
         ),
       );
       await tester.runAsync(() async {
@@ -83,12 +83,7 @@ void main() {
         });
         try {
           // CI grants POST_NOTIFICATIONS once Flutter installs the debug app.
-          await waitFor(
-            (s) =>
-                s['allowed'] == true &&
-                s['summaryAllowed'] == true &&
-                s['exactAlarmAllowed'] == true,
-          );
+          await waitFor((s) => s['allowed'] == true);
           await initializeAndroidMonitoring(storage);
           expect(Monitoring.startupError, isNull);
           await storage.saveConnection(
@@ -98,30 +93,21 @@ void main() {
           await storage.saveMonitoring(const MonitoringSettings(enabled: true));
           final first = await waitFor(
             (s) =>
-                s['serviceRunning'] == true &&
                 (s['lastBackgroundCheck'] as num? ?? 0) > 0 &&
-                (s['nextCheck'] as num? ?? 0) > 0 &&
                 s['checking'] == false,
           );
           expect(queries, 1);
-          expect(first['overviewVisible'], true);
-          expect(first['overviewOngoing'], true);
+          expect(first['overviewVisible'], false);
+          expect(first['overviewOngoing'], false);
           expect(first['lastBackgroundError'], '');
-          expect(first['exactAlarmAllowed'], true);
-          expect(first['alarmMode'], 'exact');
           expect(first['alertsVisible'], 0);
-          final delay =
-              (first['nextCheck'] as num) -
-              (first['lastBackgroundCheck'] as num);
-          expect(delay, inInclusiveRange(14 * 60 * 1000, 16 * 60 * 1000));
-          // Returning to the app with unchanged settings must not postpone a tick.
-          await Monitoring.configureNative(storage.monitoringSettings);
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-          expect((await status())['nextCheck'], first['nextCheck']);
-          // Same scheduling path, with a shorter delay restricted to debug builds.
-          // CI locks the screen and forces Doze when it sees this marker.
-          debugPrint('QUOTA_SMOKE_FORCE_IDLE');
-          await quotaChannel.invokeMethod<void>('smokeSchedule');
+          final scheduled = await waitFor(
+            (s) => (s['scheduledJobIds'] as List).isNotEmpty,
+          );
+          // Force the actual WorkManager job and verify its independent engine.
+          debugPrint(
+            'QUOTA_SMOKE_RUN_JOB:${(scheduled['scheduledJobIds'] as List).first}',
+          );
           final second = await waitFor(
             (s) =>
                 (s['lastBackgroundCheck'] as num? ?? 0) >
@@ -130,10 +116,8 @@ void main() {
                 s['checking'] == false,
           );
           expect(queries, 2);
-          expect(second['lastTrigger'], anyOf('timer', 'alarm'));
-          expect(second['alarmMode'], 'exact');
-          debugPrint('QUOTA_SMOKE_EXIT_IDLE');
-          expect(second['overviewOngoing'], true);
+          expect(second['overviewVisible'], false);
+          expect(second['overviewOngoing'], false);
           final backgroundTime = second['lastBackgroundCheck'];
           await storage.saveSnapshot(
             QuotaSnapshot(DateTime.now().toUtc(), [
@@ -152,12 +136,11 @@ void main() {
             reason:
                 'Foreground refresh must not pretend to be a background check',
           );
-          // Same native path as the notification stop action.
-          await quotaChannel.invokeMethod<void>('stopMonitoring');
+          await storage.saveMonitoring(const MonitoringSettings());
           await waitFor(
             (s) =>
                 s['enabled'] == false &&
-                s['serviceRunning'] == false &&
+                (s['scheduledJobIds'] as List).isEmpty &&
                 s['overviewVisible'] == false,
           );
           await prefs.reload();

@@ -41,8 +41,8 @@ class MonitoringSettings {
     'threshold': threshold,
     'mode': mode,
     'interval': interval,
-    // A monitoring service always exposes its ongoing status notification.
-    'showStatus': enabled,
+    // Retire the overview even when upgrading persisted settings.
+    'showStatus': false,
     'hideDetails': hideDetails,
   };
   factory MonitoringSettings.fromJson(Json j) {
@@ -53,7 +53,7 @@ class MonitoringSettings {
       threshold: threshold >= 1 && threshold <= 100 ? threshold : 5,
       mode: j['mode'] == 'steps' ? 'steps' : 'delta',
       interval: [15, 30, 60].contains(interval) ? interval : 15,
-      showStatus: j['showStatus'] == true,
+      showStatus: false,
       hideDetails: j['hideDetails'] == true,
     );
   }
@@ -80,7 +80,6 @@ class AndroidMonitoringScheduler implements MonitoringScheduler {
 class Monitoring {
   static MonitoringScheduler scheduler = AndroidMonitoringScheduler();
   static String? startupError;
-  static int? serviceCallback;
   static Future<void> configure(MonitoringSettings value) async {
     if (!Platform.isAndroid) return;
     if (value.enabled && startupError != null) throw AppError(startupError!);
@@ -97,11 +96,8 @@ class Monitoring {
     }
   }
 
-  static Future<void> configureNative(MonitoringSettings value) =>
-      quotaChannel.invokeMethod<void>(
-        'configureMonitoring',
-        jsonEncode({...value.toJson(), 'serviceCallback': serviceCallback}),
-      );
+  static Future<void> configureNative(MonitoringSettings value) => quotaChannel
+      .invokeMethod<void>('configureMonitoring', jsonEncode(value.toJson()));
   static Json cacheData(QuotaSnapshot snapshot) => {
     'updatedAt': snapshot.updatedAt.toIso8601String(),
     'observedMillis': snapshot.updatedAt.millisecondsSinceEpoch,

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'notification_settings.dart';
+import 'help_button.dart';
 import 'quota_period_view.dart';
 import '../core/quota_details.dart';
 import 'package:http/http.dart' as http;
@@ -173,11 +174,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
-            const Text(
-              '打开 App 或下拉刷新可更新限额；Android 可在设置中启用消耗提醒。',
-              style: TextStyle(fontSize: 12, height: 1.7),
-            ),
           ],
         ),
       ),
@@ -298,29 +294,22 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) => PopScope(
     canPop: !busy,
     child: Scaffold(
-      appBar: AppBar(title: const Text('连接服务器')),
+      appBar: AppBar(
+        title: const Text('连接服务器'),
+        actions: const [
+          HelpButton(
+            title: '连接服务器',
+            text:
+                '服务器填写 IP 或主机名。管理密钥是 secret-key 或 MANAGEMENT_PASSWORD，保存在本机系统安全存储。\n\n默认端口为 8317；完整地址填写后优先使用。建议通过 Tailscale 或家庭 VPN 连接。',
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: ListView(
             padding: const EdgeInsets.all(28),
             children: [
-              const Icon(Icons.dns_outlined, size: 44),
-              const SizedBox(height: 24),
-              const Text(
-                '你的服务，\n随手可见。',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                '连接已经运行的 CLIProxyAPI，查看账号剩余额度。',
-                style: TextStyle(height: 1.6),
-              ),
-              const SizedBox(height: 32),
               TextField(
                 controller: server,
                 enabled: !busy && !loading,
@@ -328,7 +317,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 decoration: const InputDecoration(
                   labelText: '服务器',
                   hintText: '100.64.0.10 或 proxy.home',
-                  helperText: '只填 IP 或主机名',
                 ),
               ),
               const SizedBox(height: 22),
@@ -340,7 +328,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 enableSuggestions: false,
                 decoration: InputDecoration(
                   labelText: '管理密钥',
-                  helperText: 'secret-key 或 MANAGEMENT_PASSWORD',
                   suffixIcon: IconButton(
                     tooltip: hide ? '显示密钥' : '隐藏密钥',
                     onPressed: () => setState(() => hide = !hide),
@@ -377,10 +364,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     controller: port,
                     enabled: !busy && !loading,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '端口',
-                      helperText: '默认 8317',
-                    ),
+                    decoration: const InputDecoration(labelText: '端口'),
                   ),
                   const SizedBox(height: 22),
                   TextField(
@@ -390,7 +374,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: const InputDecoration(
                       labelText: '完整地址（可选）',
                       hintText: 'https://cpa.example.com',
-                      helperText: '填写后优先使用此地址',
                     ),
                   ),
                   if (widget.storage.settings != null)
@@ -403,11 +386,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               if (Platform.isAndroid)
                 NotificationSettingsPanel(storage: widget.storage),
-              const SizedBox(height: 24),
-              const Text(
-                '建议通过 Tailscale 或家庭 VPN 连接。管理密钥仅存于本机系统安全存储；通知内容不包含密钥。',
-                style: TextStyle(fontSize: 12, height: 1.7),
-              ),
             ],
           ),
         ),

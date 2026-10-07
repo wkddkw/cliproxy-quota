@@ -105,7 +105,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('开启常驻监测'));
+    await tester.tap(find.text('定时刷新'));
     await tester.pumpAndSettle();
     expect(storage.monitoringSettings.enabled, false);
     expect(calls, contains('requestNotificationPermission'));
@@ -115,7 +115,7 @@ void main() {
         .setMockMethodCallHandler(quotaChannel, null);
   });
   testWidgets(
-    'overdue monitoring explains alarm permission and opens settings',
+    'help is hidden until requested and no overview controls remain',
     (tester) async {
       SharedPreferences.setMockInitialValues({
         'monitoring': jsonEncode(
@@ -129,11 +129,8 @@ void main() {
             if (call.method == 'monitoringStatus') {
               return {
                 'enabled': true,
-                'serviceRunning': true,
-                'alarmMode': 'inexact',
-                'exactAlarmAllowed': false,
-                'nextCheck':
-                    DateTime.now().millisecondsSinceEpoch - 8 * 60 * 1000,
+                'allowed': true,
+                'batteryOptimized': true,
               };
             }
             return null;
@@ -149,15 +146,33 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.textContaining('计划已逾期'), findsOneWidget);
-      expect(find.text('定时唤醒：系统可延迟，需允许闹钟和提醒'), findsOneWidget);
-      await tester.ensureVisible(find.text('允许闹钟和提醒'));
-      await tester.tap(find.text('允许闹钟和提醒'));
+      expect(find.textContaining('系统省电或厂商后台限制'), findsNothing);
+      expect(find.textContaining('常驻'), findsNothing);
+      expect(find.text('允许闹钟和提醒'), findsNothing);
+      await tester.tap(find.byTooltip('定时刷新与提醒说明'));
       await tester.pumpAndSettle();
-      expect(calls, contains('openExactAlarmSettings'));
+      expect(find.textContaining('系统省电或厂商后台限制'), findsOneWidget);
+      await tester.tap(find.text('后台与电池设置'));
+      await tester.pumpAndSettle();
+      expect(calls, contains('openBatterySettings'));
+      await tester.tap(find.text('知道了'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('系统省电或厂商后台限制'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(quotaChannel, null);
     },
   );
+  test('legacy overview preferences are discarded without changing alerts', () {
+    final migrated = MonitoringSettings.fromJson({
+      'enabled': true,
+      'showStatus': true,
+      'threshold': 10,
+      'interval': 30,
+    });
+    expect(migrated.enabled, true);
+    expect(migrated.threshold, 10);
+    expect(migrated.interval, 30);
+    expect(migrated.toJson()['showStatus'], false);
+  });
 }

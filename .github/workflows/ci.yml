@@ -59,7 +59,7 @@ jobs:
         with:
           name: cliproxy-quota-ios-unsigned
           path: build/ios/cliproxy-quota-ios-unsigned.zip
-  service-smoke:
+  background-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -88,5 +88,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: quota-service-smoke-log
-          path: /tmp/quota-service-smoke.log
+          name: quota-worker-smoke-log
+          path: /tmp/quota-worker-smoke.log
