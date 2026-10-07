@@ -100,6 +100,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 "monitoringStatus" -> synchronized(lock) {
                     result.success(notificationStatus() + mapOf("lastCheck" to monitor().getLong("lastCheck", 0), "lastError" to monitor().getString("lastError", ""),
                         "enabled" to config().optBoolean("enabled"),
+                        "activityVisible" to (activity?.hasWindowFocus() == true),
                         "lastBackgroundCheck" to monitor().getLong("lastBackgroundCheck", 0),
                         "lastBackgroundError" to monitor().getString("lastBackgroundError", ""),
                         "checking" to monitor().getBoolean("checking", false),

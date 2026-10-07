@@ -111,6 +111,10 @@ void main() {
           await waitFor(
             (s) => (s['periodicIntervals'] as List).contains(30 * 60 * 1000),
           );
+          debugPrint('QUOTA_SMOKE_BACKGROUND');
+          await waitFor((s) => s['activityVisible'] == false);
+          // ProcessLifecycleOwner needs a brief delay to register the background transition.
+          await Future<void>.delayed(const Duration(seconds: 2));
           // Request the same real background worker without waiting 30 minutes.
           // Periodic registration is checked separately through WorkManager.
           await Workmanager().registerOneOffTask(
@@ -127,6 +131,7 @@ void main() {
                 s['checking'] == false,
           );
           expect(queries, 2);
+          expect(second['activityVisible'], false);
           expect(second['overviewVisible'], false);
           expect(second['overviewOngoing'], false);
           final backgroundTime = second['lastBackgroundCheck'];
