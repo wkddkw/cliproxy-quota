@@ -91,7 +91,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 "setConnectionEpoch" -> synchronized(lock) {
                     val epoch = call.arguments as String
                     if (monitor().getString("epoch", "") != epoch) {
-                        monitor().edit().putString("epoch", epoch).remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").commit()
+                        monitor().edit().putString("epoch", epoch).remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").putBoolean("checking", false).commit()
                         context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).edit().clear().commit()
                         notifications().cancelAll()
                     }
@@ -139,7 +139,7 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 }
                 "clearCache" -> synchronized(lock) {
                     context.getSharedPreferences("quota_cache", Context.MODE_PRIVATE).edit().clear().commit()
-                    monitor().edit().remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").commit()
+                    monitor().edit().remove("anchors").remove("observedMillis").remove("lastError").remove("lastCheck").remove("lastBackgroundCheck").remove("lastBackgroundError").remove("backgroundStarted").putBoolean("checking", false).commit()
                     notifications().cancelAll()
                     result.success(null)
                 }
