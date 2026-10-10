@@ -87,7 +87,7 @@ void main() {
           final installed = await quotaChannel.invokeMapMethod<String, dynamic>(
             'appVersion',
           );
-          expect(installed!['version'], '0.1.8');
+          expect(installed!['version'], '0.1.9');
           expect(
             (await quotaChannel.invokeMapMethod<String, dynamic>(
               'updateStatus',
