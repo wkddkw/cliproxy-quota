@@ -88,7 +88,17 @@ class AppStorage {
 
   Future<String> readKey() async =>
       await secure.read(key: 'managementKey') ?? '';
-  Future<void> saveConnection(ConnectionSettings value, String key) async {
+  Future<String> readBackendKey(String backend) async {
+    if (settings?.backend == backend) return readKey();
+    return await secure.read(key: '${backend}Credential') ?? '';
+  }
+
+  Future<void> saveConnection(
+    ConnectionSettings value,
+    String key, {
+    String? cpaKey,
+    String? keeperKey,
+  }) async {
     final epoch = newEpoch();
     if (Platform.isAndroid) {
       await channel.invokeMethod<void>('setConnectionEpoch', epoch);
@@ -98,6 +108,16 @@ class AppStorage {
       key: 'managementKey',
       value: value.isKeeper ? key : key.trim(),
     );
+    await secure.write(
+      key: '${value.backend}Credential',
+      value: value.isKeeper ? key : key.trim(),
+    );
+    if (cpaKey != null) {
+      await secure.write(key: 'cpaCredential', value: cpaKey.trim());
+    }
+    if (keeperKey != null) {
+      await secure.write(key: 'keeperCredential', value: keeperKey);
+    }
     await preferences.setString('connection', jsonEncode(value.toJson()));
   }
 
@@ -139,6 +159,8 @@ class AppStorage {
     await preferences.setString('connectionEpoch', epoch);
     await saveMonitoring(const MonitoringSettings());
     await secure.delete(key: 'managementKey');
+    await secure.delete(key: 'cpaCredential');
+    await secure.delete(key: 'keeperCredential');
     await preferences.remove('connection');
     await preferences.remove('snapshot');
     await preferences.remove('backgroundSnapshot');

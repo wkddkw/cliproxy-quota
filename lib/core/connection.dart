@@ -14,13 +14,55 @@ class ConnectionSettings {
     this.port = 8317,
     this.fullAddress = '',
     this.backend = 'cpa',
+    this.unified = false,
+    this.scheme = 'https',
+    this.keeperAddress = '',
+    this.cpaAddress = '',
   });
   final String server;
   final int port;
   final String fullAddress;
   final String backend;
+  final bool unified;
+  final String scheme, keeperAddress, cpaAddress;
+  Uri get sharedOrigin {
+    final input = server.trim();
+    final uri = Uri.tryParse(
+      input.contains('://')
+          ? input
+          : '$scheme://${input.contains(':') && !input.startsWith('[') && InternetAddress.tryParse(input)?.type == InternetAddressType.IPv6 ? '[$input]' : input}:$port',
+    );
+    if (uri == null ||
+        !['http', 'https'].contains(uri.scheme) ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        port < 1 ||
+        port > 65535) {
+      throw const AppError('请填写有效服务器 IP 或地址与端口');
+    }
+    return uri.replace(path: '').removeFragment();
+  }
+
+  Uri get keeperUri => unified ? _endpoint(keeperAddress, '/keeper') : baseUri;
+  Uri get cpaUri => unified ? _endpoint(cpaAddress, '') : baseUri;
+  Uri _endpoint(String override, String path) {
+    if (override.trim().isEmpty) return sharedOrigin.replace(path: path);
+    final uri = Uri.tryParse(override.trim());
+    if (uri == null ||
+        !['http', 'https'].contains(uri.scheme) ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      throw const AppError('独立地址须为完整 HTTP(S) 地址，不含账号、查询或页面片段');
+    }
+    return uri.replace(path: uri.path.replaceFirst(RegExp(r'/+$'), ''));
+  }
+
   bool get isKeeper => backend == 'keeper';
   Uri get baseUri {
+    if (unified) return isKeeper ? keeperUri : cpaUri;
     if (port < 1 || port > 65535) throw const AppError('端口须在 1–65535 之间');
     if (fullAddress.trim().isNotEmpty) {
       final parsed = Uri.tryParse(fullAddress.trim());
@@ -61,12 +103,20 @@ class ConnectionSettings {
     'port': port,
     'fullAddress': fullAddress,
     'backend': backend,
+    'unified': unified,
+    'scheme': scheme,
+    'keeperAddress': keeperAddress,
+    'cpaAddress': cpaAddress,
   };
   factory ConnectionSettings.fromJson(Json json) => ConnectionSettings(
     server: json['server'] as String,
     port: json['port'] as int,
     fullAddress: json['fullAddress'] as String,
     backend: json['backend'] == 'keeper' ? 'keeper' : 'cpa',
+    unified: json['unified'] == true,
+    scheme: json['scheme'] == 'http' ? 'http' : 'https',
+    keeperAddress: json['keeperAddress'] as String? ?? '',
+    cpaAddress: json['cpaAddress'] as String? ?? '',
   );
 }
 

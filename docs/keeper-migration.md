@@ -62,3 +62,32 @@ report for executed Flutter analyze/tests and standalone Kotlin tracker tests.
 Before shipping, run Android native Gradle tests, release build and real-device background/VPN/Doze/force-stop scenarios. Verify the deployed
 Keeper version and its live API contract after secure login. Nothing has been
 pushed, published or deployed.
+
+## v0.1.10 unified connection and explicit reset
+
+The default connection form now accepts one host, protocol and port. CPA uses the
+origin; Keeper uses `/keeper`. Management-page and Keeper-page URLs may be pasted
+into the host field; their page path/fragment is removed. Advanced settings allow
+independent full endpoints. Old saved connections retain their original addresses
+until edited. Credentials remain distinct in OS-backed storage; no password is
+copied from CPA to Keeper or vice versa. Enabling Keeper selects it for quota and
+usage; disabling it uses direct CPA quota queries.
+
+GPT/Codex and Claude Keeper account details expose reset-rights inspection.
+Read-only inspection uses `/quota/reset-credits/{auth_index}` or
+`/quota/claude-reset-grants/{auth_index}`. Only an explicit confirmation invokes
+POST `/quota/reset`; Claude forwards the selected grant and organization IDs.
+This consumes official rights. It is not a usage-statistics reset, scheduled task,
+or quota-display refresh. No live reset was executed during development.
+
+Unknown availability disables reset. Double submission is disabled, and uncertain
+responses never auto-retry. One attempted action locks the action for that page
+session, including when refreshing its rights list. A follow-up quota query
+updates cached amounts. Official success with CPA recovery failure is reported
+separately to avoid encouraging duplicate consumption.
+
+Token counts now use decimal K/M/B with up to two decimals and exact-number
+details. The daily dimension aggregates server-calendar buckets; opening a day
+queries custom/day start=end for both overview and per-key composition. Partial
+positive cost remains visible with a partial marker, consistent with Keeper's
+heatmap; unknown and unpriced amounts are not presented as free usage.

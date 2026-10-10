@@ -192,15 +192,67 @@ class KeeperApi {
     }
   }
 
+  Future<Json> resetOptions(
+    ConnectionSettings settings,
+    String password,
+    String authIndex, {
+    required bool claude,
+  }) async {
+    if (authIndex.isEmpty) throw const AppError('账号标识缺失，请先刷新');
+    await _login(settings, password);
+    try {
+      return await _request(
+        '/quota/${claude ? 'claude-reset-grants' : 'reset-credits'}/${Uri.encodeComponent(authIndex)}',
+      );
+    } finally {
+      await _logout();
+    }
+  }
+
+  /// Mutating, consumable action. Never retry this request automatically.
+  Future<Json> resetQuota(
+    ConnectionSettings settings,
+    String password,
+    String authIndex, {
+    String? grantId,
+    String? organizationId,
+  }) async {
+    if (authIndex.isEmpty) throw const AppError('账号标识缺失，请先刷新');
+    await _login(settings, password);
+    try {
+      try {
+        return await _request(
+          '/quota/reset',
+          body: {
+            'auth_index': authIndex,
+            'grant_id': ?grantId,
+            'organization_id': ?organizationId,
+          },
+        );
+      } catch (_) {
+        // Even an HTTP failure may arrive after upstream has consumed a credit.
+        return {'code': 'unknown'};
+      }
+    } finally {
+      await _logout();
+    }
+  }
+
   Future<Json> usage(
     ConnectionSettings settings,
     String password,
-    int days,
-  ) async {
+    int days, {
+    String? day,
+  }) async {
     await _login(settings, password);
     try {
       if (![1, 7, 30].contains(days)) throw const AppError('不支持的统计范围');
-      final query = {'range': days == 1 ? 'today' : '${days}d'};
+      if (day != null && !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(day)) {
+        throw const AppError('日期格式无效');
+      }
+      final query = day == null
+          ? {'range': days == 1 ? 'today' : '${days}d'}
+          : {'range': 'custom', 'unit': 'day', 'start': day, 'end': day};
       final overview = await _request('/usage/overview', query: query);
       final analysis = await _request('/usage/analysis', query: query);
       // Do not persist raw analysis payloads (they may contain key identifiers).

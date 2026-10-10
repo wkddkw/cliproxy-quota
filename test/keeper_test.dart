@@ -269,4 +269,31 @@ void main() {
       client.close();
     },
   );
+  test(
+    'selected calendar day filters overview and every user together',
+    () async {
+      var reads = 0;
+      final c = MockClient((r) async {
+        if (r.url.path.endsWith('/auth/login')) {
+          return http.Response(
+            '',
+            204,
+            headers: {'set-cookie': 'cpa_usage_keeper_session=fixture'},
+          );
+        }
+        if (r.url.path.endsWith('/auth/logout')) return http.Response('', 204);
+        expect(r.url.queryParameters, {
+          'range': 'custom',
+          'unit': 'day',
+          'start': '2026-10-09',
+          'end': '2026-10-09',
+        });
+        reads++;
+        return http.Response('{}', 200);
+      });
+      await KeeperApi(c).usage(settings, 'fixture', 7, day: '2026-10-09');
+      expect(reads, 2);
+      c.close();
+    },
+  );
 }

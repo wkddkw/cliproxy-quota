@@ -8,6 +8,7 @@ import 'update_settings.dart';
 import 'quota_period_view.dart';
 import 'usage_page.dart';
 import '../core/quota_details.dart';
+import 'reset_quota_page.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -192,11 +193,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 padding: const EdgeInsets.only(bottom: 14),
                 child: ProviderCard(
                   provider: provider,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => AccountsPage(provider: provider),
-                    ),
-                  ),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => AccountsPage(
+                          provider: provider,
+                          storage: widget.storage,
+                        ),
+                      ),
+                    );
+                    await reloadSnapshot();
+                  },
                 ),
               ),
           ],
@@ -233,9 +240,11 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final server = TextEditingController(), key = TextEditingController();
-  final port = TextEditingController(text: '8317'),
-      address = TextEditingController();
-  String backend = 'keeper';
+  final keeperKey = TextEditingController(),
+      keeperAddress = TextEditingController(),
+      cpaAddress = TextEditingController();
+  final port = TextEditingController(text: '8443');
+  String backend = 'keeper', scheme = 'https';
   bool hide = true, busy = false, loading = true;
   String? error;
   @override
@@ -243,18 +252,31 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     final saved = widget.storage.settings;
     backend = saved?.backend ?? 'keeper';
-    server.text = saved?.server ?? '';
-    port.text = '${saved?.port ?? 8317}';
-    address.text = saved?.fullAddress ?? '';
+    if (saved != null) {
+      final origin = saved.unified ? saved.sharedOrigin : saved.baseUri;
+      server.text = origin.host;
+      port.text = '${origin.port}';
+      scheme = origin.scheme;
+      keeperAddress.text = saved.unified
+          ? saved.keeperAddress
+          : saved.isKeeper && origin.path != '/keeper'
+          ? origin.toString()
+          : '';
+      cpaAddress.text = saved.unified ? saved.cpaAddress : '';
+    }
     loadKey();
   }
 
   Future<void> loadKey() async {
     try {
-      final value = await widget.storage.readKey();
-      if (mounted) key.text = value;
+      final cpa = await widget.storage.readBackendKey('cpa');
+      final keeper = await widget.storage.readBackendKey('keeper');
+      if (mounted) {
+        key.text = cpa;
+        keeperKey.text = keeper;
+      }
     } catch (_) {
-      if (mounted) setState(() => error = '无法读取系统安全存储，请重新输入管理密钥');
+      if (mounted) setState(() => error = '无法读取系统安全存储，请重新输入登录信息');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -262,10 +284,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    server.dispose();
-    key.dispose();
-    port.dispose();
-    address.dispose();
+    for (final c in [server, key, keeperKey, keeperAddress, cpaAddress, port]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -288,11 +309,20 @@ class _SettingsPageState extends State<SettingsPage> {
       final value = ConnectionSettings(
         server: server.text.trim(),
         port: int.tryParse(port.text.trim()) ?? 0,
-        fullAddress: address.text.trim(),
         backend: backend,
+        unified: true,
+        scheme: scheme,
+        keeperAddress: keeperAddress.text.trim(),
+        cpaAddress: cpaAddress.text.trim(),
       );
-      final snapshot = await ManagementApi(client).refresh(value, key.text);
-      await widget.storage.saveConnection(value, key.text);
+      final credential = backend == 'keeper' ? keeperKey.text : key.text;
+      final snapshot = await ManagementApi(client).refresh(value, credential);
+      await widget.storage.saveConnection(
+        value,
+        credential,
+        cpaKey: key.text,
+        keeperKey: keeperKey.text,
+      );
       await widget.storage.saveSnapshot(snapshot);
       if (mounted) finish();
     } catch (e) {
@@ -344,9 +374,8 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           HelpButton(
             title: '连接服务器',
-            text: backend == 'keeper'
-                ? '填写 Keeper 完整 HTTPS 地址，保留 /keeper 等部署路径。使用 Keeper 管理员密码，不是 CLIProxyAPI 管理密钥。密码仅保存在本机系统安全存储。'
-                : '服务器填写 IP 或主机名。管理密钥是 secret-key 或 MANAGEMENT_PASSWORD，保存在本机系统安全存储。\n\n默认端口为 8317；完整地址填写后优先使用。建议通过 Tailscale 或家庭 VPN 连接。',
+            text:
+                '默认共用一个服务器 IP、端口和协议，CLIProxy 使用根地址，Keeper 自动使用 /keeper。也可直接粘贴管理页面或 Keeper 页面网址。分开部署时在高级设置覆盖地址。两边凭据独立保存，不自动互用。开启 Keeper 后额度、统计与重置使用 Keeper；关闭后额度直接查询 CLIProxy。',
           ),
         ],
       ),
@@ -356,62 +385,76 @@ class _SettingsPageState extends State<SettingsPage> {
           child: ListView(
             padding: const EdgeInsets.all(28),
             children: [
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'keeper', label: Text('Keeper')),
-                  ButtonSegment(value: 'cpa', label: Text('CLIProxyAPI')),
-                ],
-                selected: {backend},
-                onSelectionChanged: busy || loading
-                    ? null
-                    : (values) => setState(() {
-                        backend = values.first;
-                        key.clear();
-                      }),
+              TextField(
+                controller: server,
+                enabled: !busy && !loading,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: '服务器',
+                  hintText: 'IP、域名或完整页面地址',
+                ),
               ),
-              const SizedBox(height: 22),
-              if (backend == 'keeper')
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 22),
-                  child: TextField(
-                    controller: address,
-                    enabled: !busy && !loading,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: 'Keeper 完整地址',
-                      hintText: 'https://keeper.example.com/keeper',
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: scheme,
+                      decoration: const InputDecoration(labelText: '协议'),
+                      items: const [
+                        DropdownMenuItem(value: 'https', child: Text('HTTPS')),
+                        DropdownMenuItem(value: 'http', child: Text('HTTP')),
+                      ],
+                      onChanged: busy || loading
+                          ? null
+                          : (v) => setState(() => scheme = v!),
                     ),
                   ),
-                ),
-              if (backend == 'cpa')
-                TextField(
-                  controller: server,
-                  enabled: !busy && !loading,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: '服务器',
-                    hintText: '100.64.0.10 或 proxy.home',
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: port,
+                      enabled: !busy && !loading,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: '端口'),
+                    ),
                   ),
-                ),
-              const SizedBox(height: 22),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('启用 Keeper 额度与统计'),
+                subtitle: const Text('默认使用同一服务器的 /keeper'),
+                value: backend == 'keeper',
+                onChanged: busy || loading
+                    ? null
+                    : (v) => setState(() => backend = v ? 'keeper' : 'cpa'),
+              ),
               TextField(
                 controller: key,
                 enabled: !busy && !loading,
                 obscureText: hide,
                 autocorrect: false,
                 enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: backend == 'keeper' ? 'Keeper 管理员密码' : '管理密钥',
-                  suffixIcon: IconButton(
-                    tooltip: hide ? '显示密钥' : '隐藏密钥',
-                    onPressed: () => setState(() => hide = !hide),
-                    icon: Icon(
-                      hide
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                  ),
+                decoration: const InputDecoration(
+                  labelText: 'CLIProxy 管理密钥',
+                  helperText: '直接连接 CLIProxy 时使用；仅使用 Keeper 可留空',
                 ),
+              ),
+              const SizedBox(height: 16),
+              if (backend == 'keeper')
+                TextField(
+                  controller: keeperKey,
+                  enabled: !busy && !loading,
+                  obscureText: hide,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(labelText: 'Keeper 管理员密码'),
+                ),
+              TextButton(
+                onPressed: () => setState(() => hide = !hide),
+                child: Text(hide ? '显示登录信息' : '隐藏登录信息'),
               ),
               const SizedBox(height: 24),
               if (error != null) Notice(error!),
@@ -429,37 +472,30 @@ class _SettingsPageState extends State<SettingsPage> {
                     : const Text('保存并连接'),
               ),
               const SizedBox(height: 20),
-              if (backend == 'cpa')
-                ExpansionTile(
-                  title: const Text('更多'),
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.symmetric(vertical: 12),
-                  children: [
-                    TextField(
-                      controller: port,
-                      enabled: !busy && !loading,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '端口'),
+              ExpansionTile(
+                title: const Text('高级设置：独立部署地址'),
+                tilePadding: EdgeInsets.zero,
+                children: [
+                  TextField(
+                    controller: keeperAddress,
+                    enabled: !busy && !loading,
+                    decoration: const InputDecoration(
+                      labelText: 'Keeper 独立地址（可选）',
+                      hintText: 'https://other.example/keeper',
                     ),
-                    const SizedBox(height: 22),
-                    TextField(
-                      controller: address,
-                      enabled: !busy && !loading,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        labelText: '完整地址（可选）',
-                        hintText: 'https://cpa.example.com',
-                      ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: cpaAddress,
+                    enabled: !busy && !loading,
+                    decoration: const InputDecoration(
+                      labelText: 'CLIProxy 独立地址（可选）',
+                      hintText: 'https://proxy.example',
                     ),
-                    if (widget.storage.settings != null)
-                      TextButton.icon(
-                        onPressed: busy || loading ? null : clear,
-                        icon: const Icon(Icons.link_off),
-                        label: const Text('清除这台服务器'),
-                      ),
-                  ],
-                ),
-              if (backend == 'keeper' && widget.storage.settings != null)
+                  ),
+                ],
+              ),
+              if (widget.storage.settings != null)
                 TextButton.icon(
                   onPressed: busy || loading ? null : clear,
                   icon: const Icon(Icons.link_off),
@@ -573,9 +609,21 @@ class ProviderCard extends StatelessWidget {
   }
 }
 
-class AccountsPage extends StatelessWidget {
-  const AccountsPage({super.key, required this.provider});
+class AccountsPage extends StatefulWidget {
+  const AccountsPage({super.key, required this.provider, this.storage});
+  final AppStorage? storage;
   final ProviderQuota provider;
+  @override
+  State<AccountsPage> createState() => _AccountsPageState();
+}
+
+class _AccountsPageState extends State<AccountsPage> {
+  AppStorage? get storage => widget.storage;
+  ProviderQuota get provider =>
+      storage?.snapshot?.providers
+          .where((p) => p.name == widget.provider.name)
+          .firstOrNull ??
+      widget.provider;
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(provider.name)),
@@ -622,6 +670,24 @@ class AccountsPage extends StatelessWidget {
                     Text(
                       '${account.queried ? '额度查询于' : '服务器记录于'} ${formatTime(account.observedAt!)}',
                       style: const TextStyle(fontSize: 12),
+                    ),
+                  if (storage?.settings?.isKeeper == true &&
+                      ['GPT', 'Claude'].contains(account.provider) &&
+                      (account.id ?? '').isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ResetQuotaPage(
+                              storage: storage!,
+                              account: account,
+                            ),
+                          ),
+                        );
+                        if (mounted) setState(() {});
+                      },
+                      icon: const Icon(Icons.restart_alt),
+                      label: const Text('查看重置卡 / 重置额度'),
                     ),
                   for (final period in account.periods)
                     QuotaPeriodView(

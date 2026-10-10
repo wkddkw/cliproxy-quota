@@ -71,6 +71,7 @@ void main() {
                   'requests': 12,
                   'total_tokens': 4200,
                   'cost_available': false,
+                  'cost_usd': 12.34,
                 },
               ],
             };
@@ -90,12 +91,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Grok'), findsOneWidget);
     expect(find.text('估算费用 \$0.300'), findsOneWidget);
-    expect(find.textContaining('4200 Tokens'), findsOneWidget);
+    expect(find.textContaining('4.2K Tokens'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('用户 / API Key').last);
     await tester.pumpAndSettle();
     expect(find.text('Team A'), findsOneWidget);
+    expect(find.text('\$12.340（部分）'), findsOneWidget);
     expect(find.text('should-not-be-shown'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
