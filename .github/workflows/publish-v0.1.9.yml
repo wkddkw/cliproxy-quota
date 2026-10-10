@@ -33,8 +33,10 @@ jobs:
           build_tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
           "$build_tools/apksigner" verify --print-certs new/app-release.apk | tee new-signature.txt
           "$build_tools/apksigner" verify --print-certs previous/cliproxy-quota-v0.1.8.apk | tee old-signature.txt
-          grep '^Signer #1 certificate SHA-256 digest:' new-signature.txt > new-cert.txt
-          grep '^Signer #1 certificate SHA-256 digest:' old-signature.txt > old-cert.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' new-signature.txt | sort -u > new-cert.txt
+          test -s new-cert.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' old-signature.txt | sort -u > old-cert.txt
+          test -s old-cert.txt
           diff -u old-cert.txt new-cert.txt
           "$build_tools/aapt" dump badging new/app-release.apk | tee badging.txt
           grep -E "^package: name='com.wkddkw.cliproxy_quota' versionCode='10' versionName='0.1.9'" badging.txt
