@@ -1,0 +1,60 @@
+name: Publish verified v0.1.11
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v0.1.11.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: wkddkw/cliproxy-quota
+      VERIFIED_RUN: '38033031382'
+      VERIFIED_SHA: 97705c07b70fcba20272e611fc72a665ce1b8eeb
+    steps:
+      - name: Verify successful source build
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/actions/runs/$VERIFIED_RUN" > run.json
+          jq -e --arg sha "$VERIFIED_SHA" '.head_sha == $sha and .conclusion == "success" and .event == "push"' run.json
+          gh run download "$VERIFIED_RUN" --repo "$GH_REPO" --name cliproxy-quota-android --dir new
+          gh release download v0.1.10 --repo "$GH_REPO" --pattern cliproxy-quota-v0.1.10.apk --dir previous
+      - name: Verify Android update compatibility
+        run: |
+          set -euo pipefail
+          set -x
+          build_tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$build_tools/apksigner" verify --print-certs new/app-release.apk | tee new-signature.txt
+          "$build_tools/apksigner" verify --print-certs previous/cliproxy-quota-v0.1.10.apk | tee old-signature.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' new-signature.txt | sort -u > new-cert.txt
+          test -s new-cert.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' old-signature.txt | sort -u > old-cert.txt
+          test -s old-cert.txt
+          diff -u old-cert.txt new-cert.txt
+          "$build_tools/aapt" dump badging new/app-release.apk | tee badging.txt
+          grep -E "^package: name='com.wkddkw.cliproxy_quota' versionCode='12' versionName='0.1.11'" badging.txt
+          cp new/app-release.apk cliproxy-quota-v0.1.11.apk
+          sha256sum cliproxy-quota-v0.1.11.apk
+      - name: Publish update asset after validation
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'NOTES'
+          修复更新安装循环，统一按所选时段显示用量合计。
+          - 每次下载使用独立 APK 文件名和安装 URI，安装前核对包名、目标版本、版本号、签名及 SHA-256。
+          - 返回应用时重新读取实际安装版本，清理已安装或更旧的下载状态；保留检查更新和清理下载入口。
+          - 校验失败明确显示错误，不再反复恢复成可安装状态。
+          - 今天、最近 7 天、最近 30 天统一控制总用量、用户/API Key、模型和账号合计；删除每天维度和日期下钻。
+
+          验证：94 项 Flutter 测试、静态检查、Android 原生测试、Android/iOS 构建与 Android 35 后台检查通过。发布前核对 APK 版本 0.1.11、版本号 12、包名及与 v0.1.10 签名一致。
+          旧版若卡在安装按钮，可从本页下载 APK 覆盖安装，无需卸载。手机实际升级结果仍需确认；尚未证明旧安装会话的具体缓存根因。
+          构建：https://github.com/wkddkw/cliproxy-quota/actions/runs/38033031382
+          NOTES
+          gh release create v0.1.11 cliproxy-quota-v0.1.11.apk --repo "$GH_REPO" --target "$VERIFIED_SHA" --title "v0.1.11 · 更新安装与时段合计" --notes-file notes.md --draft --prerelease
+          gh release edit v0.1.11 --repo "$GH_REPO" --draft=false
