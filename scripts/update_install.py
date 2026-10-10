@@ -7,6 +7,7 @@ def capture(label):
  adb('shell','uiautomator','dump','/sdcard/window.xml',check=False)
  xml=adb('shell','cat','/sdcard/window.xml',check=False)
  (OUT/(label+'.xml')).write_text(xml)
+ print('UI_CAPTURE',label,xml,flush=True)
  with (OUT/(label+'.png')).open('wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=False)
  return xml
 def nodes():
@@ -55,7 +56,10 @@ try:
  end=time.time()+90
  while time.time()<end and version()!='0.1.11':time.sleep(2)
  capture('04-install-result');assert version()=='0.1.11',version()
- launch();click_text('检查更新',scroll=True,timeout=75);capture('05-new-current-version')
+ print('INSTALLED_VERSION_CONFIRMED',version(),flush=True)
+ click_text('Open',timeout=30);time.sleep(5)
+ capture('05-reopened')
+ click_text('检查更新',scroll=True,timeout=75);capture('06-new-current-version')
  assert version()=='0.1.11'
  (OUT/'result.json').write_text(json.dumps({'initial':'0.1.10','installed':'0.1.11','route':'real released APK -> app update -> DownloadManager -> FileProvider -> system confirmation','next_upgrade_tested':False}))
  print('REAL_UPDATE_INSTALL_PASS 0.1.10 -> 0.1.11')
