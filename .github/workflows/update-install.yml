@@ -1,0 +1,34 @@
+name: Verify real release update installation
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/update-install.yml', 'scripts/update_install.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download released starting APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v0.1.10 --repo wkddkw/cliproxy-quota --pattern cliproxy-quota-v0.1.10.apk --output old.apk
+      - name: Enable emulator
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: python3 scripts/update_install.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-update-evidence
+          path: update-evidence/
