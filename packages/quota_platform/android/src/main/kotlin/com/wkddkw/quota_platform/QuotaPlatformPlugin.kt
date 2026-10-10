@@ -194,11 +194,11 @@ class QuotaPlatformPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 if (a.isFinite() && p.isFinite()) anchors[name] = QuotaAnchor(a, p, row.optString("cycle"))
             }
         }
-        val rows = data.optJSONArray("providers")
+        val rows = data.optJSONArray("samples") ?: data.optJSONArray("providers")
         val samples = mutableListOf<QuotaSample>()
         if (rows != null) for (i in 0 until rows.length()) {
             val row = rows.optJSONObject(i) ?: continue
-            samples += QuotaSample(row.optString("name"), row.optDouble("remaining").takeIf { it.isFinite() }, row.optString("cycle"), row.optInt("issues") == 0)
+            samples += QuotaSample(row.optString("name"), row.optDouble("remaining").takeIf { it.isFinite() }, row.optString("cycle"), row.optInt("issues") == 0, row.optString("label", row.optString("name")))
         }
         val n = notifications()
         val evaluated = QuotaTracker.evaluate(samples, anchors, c.optDouble("threshold", 5.0), c.optString("mode", "delta"), n.alertsAllowed())

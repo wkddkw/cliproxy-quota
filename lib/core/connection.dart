@@ -1,19 +1,25 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
+
 import 'models.dart';
 import 'live_quota.dart';
+import 'keeper.dart';
 
 class ConnectionSettings {
   const ConnectionSettings({
     required this.server,
     this.port = 8317,
     this.fullAddress = '',
+    this.backend = 'cpa',
   });
   final String server;
   final int port;
   final String fullAddress;
+  final String backend;
+  bool get isKeeper => backend == 'keeper';
   Uri get baseUri {
     if (port < 1 || port > 65535) throw const AppError('端口须在 1–65535 之间');
     if (fullAddress.trim().isNotEmpty) {
@@ -32,8 +38,10 @@ class ConnectionSettings {
             '',
           )
           .replaceFirst(RegExp(r'/+$'), '');
-      if (path.isNotEmpty) throw const AppError('完整地址只能包含主机、端口及管理页面后缀');
-      return parsed.replace(path: '');
+      if (!isKeeper && path.isNotEmpty) {
+        throw const AppError('完整地址只能包含主机、端口及管理页面后缀');
+      }
+      return parsed.replace(path: isKeeper ? path : '');
     }
     var host = server.trim();
     if (host.startsWith('[') && host.endsWith(']')) {
@@ -48,16 +56,23 @@ class ConnectionSettings {
     return Uri(scheme: 'http', host: host, port: port);
   }
 
-  Json toJson() => {'server': server, 'port': port, 'fullAddress': fullAddress};
+  Json toJson() => {
+    'server': server,
+    'port': port,
+    'fullAddress': fullAddress,
+    'backend': backend,
+  };
   factory ConnectionSettings.fromJson(Json json) => ConnectionSettings(
     server: json['server'] as String,
     port: json['port'] as int,
     fullAddress: json['fullAddress'] as String,
+    backend: json['backend'] == 'keeper' ? 'keeper' : 'cpa',
   );
 }
 
 class AppError implements Exception {
-  const AppError(this.message);
+  const AppError(this.message, {this.retryable = false});
+  final bool retryable;
   final String message;
   @override
   String toString() => message;
@@ -67,6 +82,7 @@ class ManagementApi {
   ManagementApi(this.client);
   final http.Client client;
   Future<QuotaSnapshot> refresh(ConnectionSettings settings, String key) async {
+    if (settings.isKeeper) return KeeperApi(client).refresh(settings, key);
     if (key.trim().isEmpty) throw const AppError('请填写管理密钥，不是客户端 api-keys');
     final base = settings.baseUri;
     try {
@@ -97,7 +113,10 @@ class ManagementApi {
         throw const AppError('管理接口返回重定向，请在「更多」填写最终地址');
       }
       if (response.statusCode != 200) {
-        throw AppError('服务请求失败（HTTP ${response.statusCode}），可稍后重试');
+        throw AppError(
+          '服务请求失败（HTTP ${response.statusCode}），可稍后重试',
+          retryable: response.statusCode == 429 || response.statusCode >= 500,
+        );
       }
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       if (data is! Map ||
@@ -127,6 +146,7 @@ class ManagementApi {
                 .firstOrNull;
             final builtin = rawProvider == 'codex' || rawProvider == 'claude';
             if (!builtin &&
+                accounts[index].provider != 'Grok' &&
                 (file['unavailable'] == true || file['status'] == 'error')) {
               return;
             }
@@ -207,11 +227,11 @@ class ManagementApi {
     } on AppError {
       rethrow;
     } on TimeoutException {
-      throw const AppError('连接超时，请检查服务器和 VPN / Tailscale');
+      throw const AppError('连接超时，请检查服务器和 VPN / Tailscale', retryable: true);
     } on SocketException {
-      throw const AppError('无法连接服务器，请检查网络、VPN 和「更多」中的地址');
+      throw const AppError('无法连接服务器，请检查网络、VPN 和「更多」中的地址', retryable: true);
     } on http.ClientException {
-      throw const AppError('网络连接失败，请检查服务器地址及 HTTPS 证书');
+      throw const AppError('网络连接失败，请检查服务器地址及 HTTPS 证书', retryable: true);
     } on FormatException {
       throw const AppError('接口返回的不是有效 JSON，请检查完整地址');
     }
@@ -318,9 +338,9 @@ class ManagementApi {
         final header = <String, String>{
           'Authorization': 'Bearer \$TOKEN\$',
           'x-xai-token-auth': 'xai-grok-cli',
-          'x-grok-client-version': '0.2.91',
+          'x-grok-client-version': '0.2.93',
           'accept': '*/*',
-          'user-agent': 'grok-pager/0.2.91 grok-shell/0.2.91 (macos; aarch64)',
+          'user-agent': 'grok-pager/0.2.93 grok-shell/0.2.93 (macos; aarch64)',
         };
         for (final record in [
           file,
@@ -328,13 +348,18 @@ class ManagementApi {
           file['attributes'],
           file['oauth'],
           file['user'],
+          if (file['metadata'] is Map) file['metadata']['oauth'],
+          if (file['metadata'] is Map) file['metadata']['user'],
+          if (file['attributes'] is Map) file['attributes']['oauth'],
+          if (file['attributes'] is Map) file['attributes']['user'],
         ]) {
           if (record is! Map) continue;
           final id =
               record['sub'] ??
               record['subject'] ??
               record['user_id'] ??
-              record['userId'];
+              record['userId'] ??
+              (record == file ? null : record['id']);
           if (id != null && '$id'.trim().isNotEmpty) {
             header['x-userid'] = '$id';
             break;

@@ -74,6 +74,7 @@ AccountQuota? liveQuota(AccountQuota account, Json payload, DateTime now) {
   return AccountQuota(
     provider: account.provider,
     name: account.name,
+    id: account.id,
     remaining: chosen.value.remaining,
     resetAt: chosen.value.resetAt,
     windowMinutes: chosen.value.minutes,

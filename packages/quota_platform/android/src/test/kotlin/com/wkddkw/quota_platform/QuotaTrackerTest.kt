@@ -28,7 +28,7 @@ class QuotaTrackerTest {
     @Test fun invalidAndIncompleteSamplesCannotAlert() {
         val base = run(90.0).anchors
         for (value in listOf(null, Double.NaN, Double.POSITIVE_INFINITY, -1.0, 101.0)) {
-            assertTrue(run(value, base).anchors.isEmpty())
+            assertEquals(base, run(value, base).anchors)
         }
         assertTrue(run(0.0, base, valid = false).changes.isEmpty())
         assertEquals(90.0, run(0.0, base).changes.single().consumed, 0.00001)
@@ -50,4 +50,24 @@ class QuotaTrackerTest {
         val result = QuotaTracker.evaluate(emptyList(), run(50.0).anchors, 5.0, "delta", true)
         assertTrue(result.anchors.isEmpty())
     }
+    @Test fun temporaryFailurePreservesAccumulatedConsumption() {
+        val base = run(80.0).anchors
+        val gap = run(null, base, valid = false)
+        assertTrue(gap.changes.isEmpty())
+        assertEquals(10.0, run(70.0, gap.anchors).changes.single().consumed, 0.00001)
+    }
+    @Test fun oneAccountFailureDoesNotSuppressAnotherAccount() {
+        val base = QuotaTracker.evaluate(listOf(QuotaSample("a", 80.0, "week"), QuotaSample("b", 90.0, "week")), emptyMap(), 5.0, "delta", true)
+        val next = QuotaTracker.evaluate(listOf(QuotaSample("a", null, "week", false), QuotaSample("b", 70.0, "week")), base.anchors, 5.0, "delta", true)
+        assertEquals("b", next.changes.single().name)
+        assertEquals(80.0, next.anchors.getValue("a").anchor, 0.00001)
+    }
+
+    @Test fun relativeResetMinuteJitterDoesNotRebaseConsumption() {
+        val base = run(80.0, cycle = "30000000").anchors
+        val next = run(70.0, base, cycle = "30000001")
+        assertEquals(10.0, next.changes.single().consumed, 0.00001)
+        assertTrue(run(60.0, next.anchors, cycle = "30010080").changes.isEmpty())
+    }
+
 }

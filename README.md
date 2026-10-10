@@ -1,5 +1,7 @@
 # CLIProxy 限额
 
+> 本地开发草稿：新增 Keeper 接入、用量页和通知可靠性修复。尚未发布，完整设备验证未完成。见 [迁移说明](docs/keeper-migration.md)。下方 v0.1.8 为原发布版说明。
+
 [![Build and test](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml/badge.svg)](https://github.com/wkddkw/cliproxy-quota/actions/workflows/ci.yml)
 
 在手机上查看自己的 CLIProxyAPI 账号额度：主动刷新官方限额、按供应商显示最低剩余，点开查看账号与周期明细。Android 支持可选间隔的后台刷新、百分比消耗提醒，以及应用内检查更新、下载和覆盖安装；iPhone 支持额度查看。

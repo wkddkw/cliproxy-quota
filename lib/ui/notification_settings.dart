@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../core/connection.dart';
 import '../core/monitoring.dart';
 import '../core/storage.dart';
@@ -128,7 +130,7 @@ class _NotificationSettingsPanelState extends State<NotificationSettingsPanel>
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              '后台按所选间隔检查，不显示常驻通知。系统省电或厂商后台限制可能延后检查；VPN 和服务器需保持可访问。\n\n默认累计下降 5 个百分点提醒一次，例如 80% → 75%。首次检查建立基准，周期重置或额度回升不会误报。固定刻度模式在已用比例跨过指定刻度时提醒。\n\n隐藏通知内容时只提示额度变化，详情在 App 查看。',
+              '后台按所选间隔检查，不显示常驻通知。系统省电或厂商后台限制可能延后检查；VPN 和服务器需保持可访问。\n\n每个账号、每个额度窗口独立判断。临时查询失败保留上次提醒基准。默认累计下降 5 个百分点提醒一次，例如 80% → 75%。首次检查建立基准，周期重置或额度回升不会误报。固定刻度模式在已用比例跨过指定刻度时提醒。\n\n隐藏通知内容时只提示额度变化，详情在 App 查看。',
             ),
             if (status['allowed'] == false) const Text('\n系统通知当前未开启。'),
             if (status['batteryOptimized'] == true)

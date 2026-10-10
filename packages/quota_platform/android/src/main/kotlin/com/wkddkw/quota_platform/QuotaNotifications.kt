@@ -38,7 +38,7 @@ class QuotaNotifications(private val context: Context) {
     }
     fun alert(change: QuotaChange, hide: Boolean): Boolean {
         if (!alertsAllowed()) return false
-        val title = if (hide) "CLIProxy 限额提醒" else "${change.name} 限额消耗提醒"
+        val title = if (hide) "CLIProxy 限额提醒" else "${change.displayName} 限额消耗提醒"
         val body = if (hide) "限额发生变化，打开 App 查看" else "剩余 ${format(change.remaining)}% · 较上次提醒基准下降 ${format(change.consumed)} 个百分点"
         val id = 7200 + (change.name.hashCode() and 0x7fffffff) % 1000000
         return try {

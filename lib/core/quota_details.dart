@@ -62,6 +62,7 @@ class QuotaAmounts {
 class QuotaPeriod {
   const QuotaPeriod({
     required this.label,
+    this.id,
     this.start,
     this.end,
     this.remainingPercent,
@@ -69,6 +70,7 @@ class QuotaPeriod {
     this.usd = const QuotaAmounts(),
   });
   final String label;
+  final String? id;
   final DateTime? start;
   final DateTime? end;
   final double? remainingPercent;
@@ -232,6 +234,7 @@ class QuotaPeriod {
 
   Json toJson() => {
     'label': label,
+    'id': id,
     'start': start?.toIso8601String(),
     'end': end?.toIso8601String(),
     'remainingPercent': remainingPercent,
@@ -240,6 +243,7 @@ class QuotaPeriod {
   };
   factory QuotaPeriod.fromJson(Json json) => QuotaPeriod(
     label: json['label'] as String,
+    id: json['id'] as String?,
     start: timestamp(json['start']),
     end: timestamp(json['end']),
     remainingPercent: number(json['remainingPercent']),

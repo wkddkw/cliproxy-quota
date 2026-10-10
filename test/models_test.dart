@@ -58,14 +58,18 @@ void main() {
     expect(pool.remaining, 5);
     expect(pool.accounts.length, 2);
   });
-  test('unknown and unavailable accounts prevent misleading percentage', () {
-    final pool = ProviderQuota('GPT', [
-      const AccountQuota(provider: 'GPT', name: 'a', remaining: 85),
-      const AccountQuota(provider: 'GPT', name: 'b', reason: '已禁用'),
-    ]);
-    expect(pool.remaining, isNull);
-    expect(pool.issues, 1);
-  });
+  test(
+    'unknown accounts do not hide healthy accounts; availability is explicit',
+    () {
+      final pool = ProviderQuota('GPT', [
+        const AccountQuota(provider: 'GPT', name: 'a', remaining: 85),
+        const AccountQuota(provider: 'GPT', name: 'b', reason: '已禁用'),
+      ]);
+      expect(pool.remaining, 85);
+      expect(pool.availableCount, 1);
+      expect(pool.issues, 1);
+    },
+  );
   test('disabled account does not become artificial zero', () {
     final account = AccountQuota.fromApi({
       'provider': 'codex',

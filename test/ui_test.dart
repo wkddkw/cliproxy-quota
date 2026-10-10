@@ -21,8 +21,8 @@ void main() {
       QuotaApp(storage: AppStorage(await SharedPreferences.getInstance())),
     );
     await tester.pumpAndSettle();
-    expect(find.text('服务器'), findsOneWidget);
-    expect(find.text('管理密钥'), findsOneWidget);
+    expect(find.text('Keeper 完整地址'), findsOneWidget);
+    expect(find.text('Keeper 管理员密码'), findsOneWidget);
     expect(
       tester
           .widgetList<TextField>(find.byType(TextField))

@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'monitoring.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'connection.dart';
 import 'models.dart';
 
@@ -59,14 +62,28 @@ class AppStorage {
   }
 
   QuotaSnapshot? get snapshot {
+    QuotaSnapshot? foreground;
     try {
       final value = preferences.getString('snapshot');
-      return value == null
-          ? null
-          : QuotaSnapshot.fromJson(Json.from(jsonDecode(value)));
-    } catch (_) {
-      return null;
-    }
+      if (value != null) {
+        foreground = QuotaSnapshot.fromJson(Json.from(jsonDecode(value)));
+      }
+    } catch (_) {}
+    try {
+      final raw = jsonDecode(
+        preferences.getString('backgroundSnapshot') ?? '{}',
+      );
+      if (raw is Map &&
+          raw['epoch'] == connectionEpoch &&
+          raw['snapshot'] is Map) {
+        final background = QuotaSnapshot.fromJson(Json.from(raw['snapshot']));
+        if (foreground == null ||
+            background.updatedAt.isAfter(foreground.updatedAt)) {
+          return background;
+        }
+      }
+    } catch (_) {}
+    return foreground;
   }
 
   Future<String> readKey() async =>
@@ -77,7 +94,10 @@ class AppStorage {
       await channel.invokeMethod<void>('setConnectionEpoch', epoch);
     }
     await preferences.setString('connectionEpoch', epoch);
-    await secure.write(key: 'managementKey', value: key.trim());
+    await secure.write(
+      key: 'managementKey',
+      value: value.isKeeper ? key : key.trim(),
+    );
     await preferences.setString('connection', jsonEncode(value.toJson()));
   }
 
@@ -97,6 +117,19 @@ class AppStorage {
     await preferences.setString('snapshot', jsonEncode(value.toJson()));
   }
 
+  Future<void> saveBackgroundSnapshot(QuotaSnapshot value, String epoch) async {
+    await preferences.reload();
+    if (connectionEpoch != epoch || !monitoringSettings.enabled) return;
+    final old = snapshot;
+    if (old != null && !value.updatedAt.isAfter(old.updatedAt)) return;
+    // An epoch-tagged slot prevents a late worker response from becoming the
+    // foreground snapshot after the user switches connection.
+    await preferences.setString(
+      'backgroundSnapshot',
+      jsonEncode({'epoch': epoch, 'snapshot': value.toJson()}),
+    );
+  }
+
   Future<void> clear() async {
     // Invalidate in-flight background responses before removing secrets.
     final epoch = newEpoch();
@@ -108,6 +141,7 @@ class AppStorage {
     await secure.delete(key: 'managementKey');
     await preferences.remove('connection');
     await preferences.remove('snapshot');
+    await preferences.remove('backgroundSnapshot');
     await channel.invokeMethod<void>('clearCache');
   }
 }

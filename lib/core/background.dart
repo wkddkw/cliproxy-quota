@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
+
 import 'connection.dart';
 import 'monitoring.dart';
 import 'storage.dart';
@@ -52,14 +54,18 @@ Future<bool> runQuotaCheck(
     }
     // The native epoch guard also rejects a response that finishes after the
     // user changes/clears a connection or switches off monitoring.
-    await quotaChannel.invokeMethod<bool>('writeBackgroundCache', {
-      'epoch': epoch,
-      'snapshot': jsonEncode(Monitoring.cacheData(snapshot)),
-    });
-  } catch (_) {
+    final accepted = await quotaChannel.invokeMethod<bool>(
+      'writeBackgroundCache',
+      {'epoch': epoch, 'snapshot': jsonEncode(Monitoring.cacheData(snapshot))},
+    );
+    if (accepted != false) {
+      await storage.saveBackgroundSnapshot(snapshot, epoch);
+    }
+  } catch (error) {
     try {
       await quotaChannel.invokeMethod<void>('backgroundFailure', epoch);
     } catch (_) {}
+    return !(error is AppError && error.retryable);
   }
   return true;
 }

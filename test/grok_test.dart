@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -197,4 +198,50 @@ void main() {
       );
     },
   );
+  test('Grok error state is probed again and nested user id is sent', () async {
+    var billingCalls = 0;
+    final client = MockClient((r) async {
+      if (r.url.path.endsWith('credentials')) {
+        return http.Response(
+          jsonEncode({
+            'files': [
+              {
+                'provider': 'xai',
+                'auth_index': 'grok-index',
+                'name': 'grok.json',
+                'status': 'error',
+                'unavailable': true,
+                'metadata': {
+                  'user': {'id': 'nested-user'},
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }
+      if (r.url.path.endsWith('plugins')) {
+        return http.Response('{"plugins":[]}', 200);
+      }
+      final body = jsonDecode(r.body);
+      expect(body['header']['x-userid'], 'nested-user');
+      billingCalls++;
+      return http.Response(
+        jsonEncode({
+          'status_code': 200,
+          'body': {
+            'config': {'creditUsagePercent': 20},
+          },
+        }),
+        200,
+      );
+    });
+    final result = await ManagementApi(
+      client,
+    ).refresh(const ConnectionSettings(server: 'example.invalid'), 'fixture');
+    expect(billingCalls, 2);
+    expect(result.accounts.single.remaining, 80);
+    expect(result.accounts.single.reason, isNull);
+    client.close();
+  });
 }

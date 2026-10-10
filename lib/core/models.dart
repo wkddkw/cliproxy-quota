@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'json_values.dart';
 import 'quota_details.dart';
 export 'json_values.dart';
@@ -23,6 +24,7 @@ class AccountQuota {
   const AccountQuota({
     required this.provider,
     required this.name,
+    this.id,
     this.remaining,
     this.resetAt,
     this.observedAt,
@@ -34,6 +36,7 @@ class AccountQuota {
   });
   final String provider;
   final String name;
+  final String? id;
   final double? remaining;
   final DateTime? resetAt;
   final DateTime? observedAt;
@@ -46,6 +49,7 @@ class AccountQuota {
   AccountQuota withPeriods(List<QuotaPeriod> value) => AccountQuota(
     provider: provider,
     name: name,
+    id: id,
     remaining: remaining,
     resetAt: resetAt,
     observedAt: observedAt,
@@ -59,6 +63,7 @@ class AccountQuota {
   AccountQuota withQueryFailure(String message) => AccountQuota(
     provider: provider,
     name: name,
+    id: id,
     remaining: remaining,
     resetAt: resetAt,
     observedAt: observedAt,
@@ -119,6 +124,7 @@ class AccountQuota {
     return AccountQuota(
       provider: provider,
       name: name,
+      id: id,
       remaining: remaining,
       resetAt: end,
       observedAt: DateTime.now().toUtc(),
@@ -242,6 +248,7 @@ class AccountQuota {
           )
           .toList(),
       name: name,
+      id: '${file["auth_index"] ?? file["authIndex"] ?? file["id"] ?? name}',
       remaining: chosen?.remaining,
       resetAt: chosen?.resetAt,
       observedAt: observed,
@@ -303,6 +310,7 @@ class AccountQuota {
       provider: provider,
       periods: data == null ? periods : QuotaPeriod.fromPlugin(data),
       name: name,
+      id: id,
       remaining: chosen?.remaining,
       resetAt: chosen?.resetAt,
       observedAt: chosen == null ? observedAt : DateTime.now().toUtc(),
@@ -318,6 +326,7 @@ class AccountQuota {
   Json toJson() => {
     'provider': provider,
     'name': name,
+    'id': id,
     'remaining': remaining,
     'resetAt': resetAt?.toIso8601String(),
     'observedAt': observedAt?.toIso8601String(),
@@ -330,6 +339,7 @@ class AccountQuota {
   factory AccountQuota.fromJson(Json json) => AccountQuota(
     provider: json['provider'] as String,
     name: json['name'] as String,
+    id: json['id'] as String?,
     remaining: number(json['remaining']),
     resetAt: timestamp(json['resetAt']),
     observedAt: timestamp(json['observedAt']),
@@ -353,11 +363,18 @@ class ProviderQuota {
   final List<AccountQuota> accounts;
   int get issues => accounts.where((a) => a.reason != null).length;
   bool get supported => accounts.any((a) => a.supported);
-  // A missing or unavailable account prevents a misleading pool percentage.
-  double? get remaining =>
-      accounts.any((a) => a.remaining == null || a.reason != null)
-      ? null
-      : accounts.map((a) => a.remaining!).reduce(math.min);
+  // Minimum among healthy accounts only, never a combined pool percentage.
+  int get availableCount =>
+      accounts.where((a) => a.remaining != null && a.reason == null).length;
+  double? get remaining {
+    final known = accounts.where(
+      (a) => a.remaining != null && a.reason == null,
+    );
+    return known.isEmpty
+        ? null
+        : known.map((a) => a.remaining!).reduce(math.min);
+  }
+
   String get symbol => switch (name) {
     'GPT' => 'G',
     'Claude' => '✳',

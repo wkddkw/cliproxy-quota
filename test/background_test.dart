@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -56,21 +57,24 @@ void main() {
     ),
     200,
   );
-  test('worker writes only sanitized native cache', () async {
-    final client = MockClient((r) async => response(r));
-    await runQuotaCheck(storage, client, () async => 'fake-key');
-    expect(calls.map((c) => c.method), [
-      'backgroundStarted',
-      'writeBackgroundCache',
-    ]);
-    expect(
-      calls.last.arguments.toString(),
-      isNot(contains('private@example.invalid')),
-    );
-    expect(calls.last.arguments.toString(), isNot(contains('fake-key')));
-    expect(storage.snapshot, isNull);
-    client.close();
-  });
+  test(
+    'worker keeps native cache sanitized and shares full snapshot locally',
+    () async {
+      final client = MockClient((r) async => response(r));
+      await runQuotaCheck(storage, client, () async => 'fake-key');
+      expect(calls.map((c) => c.method), [
+        'backgroundStarted',
+        'writeBackgroundCache',
+      ]);
+      expect(
+        calls.last.arguments.toString(),
+        isNot(contains('private@example.invalid')),
+      );
+      expect(calls.last.arguments.toString(), isNot(contains('fake-key')));
+      expect(storage.snapshot, isNotNull);
+      client.close();
+    },
+  );
   test('disabled monitor performs no request', () async {
     await storage.preferences.setString('monitoring', '{}');
     final client = MockClient(
@@ -123,4 +127,22 @@ void main() {
       client.close();
     },
   );
+  test('transient server error requests retry; 401 does not', () async {
+    for (final status in [401, 429, 503]) {
+      final client = MockClient((_) async => http.Response('{}', status));
+      expect(
+        await runQuotaCheck(storage, client, () async => 'fake-key'),
+        status == 401,
+      );
+      client.close();
+    }
+  });
+  test('rejected native write cannot update foreground snapshot', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(quotaChannel, (_) async => false);
+    final client = MockClient((r) async => response(r));
+    await runQuotaCheck(storage, client, () async => 'fake-key');
+    expect(storage.snapshot, isNull);
+    client.close();
+  });
 }

@@ -1,11 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import 'notification_settings.dart';
 import 'help_button.dart';
 import 'update_settings.dart';
 import 'quota_period_view.dart';
+import 'usage_page.dart';
 import '../core/quota_details.dart';
+
 import 'package:http/http.dart' as http;
+
 import '../core/connection.dart';
 import '../core/models.dart';
 import '../core/storage.dart';
@@ -20,8 +25,15 @@ class QuotaApp extends StatelessWidget {
       brightness: brightness,
     ),
     scaffoldBackgroundColor: brightness == Brightness.light
-        ? const Color(0xfff5f7f5)
-        : const Color(0xff111816),
+        ? const Color(0xfffaf9f5)
+        : const Color(0xff201e1b),
+    cardTheme: CardThemeData(
+      color: brightness == Brightness.light
+          ? const Color(0xfff0eee8)
+          : const Color(0xff2d2a26),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    ),
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -50,6 +62,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   QuotaSnapshot? snapshot;
   bool busy = false;
   bool editing = false;
+  int tab = 0;
   String? error;
   @override
   void initState() {
@@ -70,6 +83,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) reloadSnapshot();
     if (state == AppLifecycleState.resumed &&
         !editing &&
         widget.storage.settings != null &&
@@ -77,6 +91,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             DateTime.now().difference(snapshot!.updatedAt).inMinutes >= 1)) {
       refresh();
     }
+  }
+
+  Future<void> reloadSnapshot() async {
+    await widget.storage.preferences.reload();
+    if (mounted) setState(() => snapshot = widget.storage.snapshot);
   }
 
   Future<void> refresh() async {
@@ -113,6 +132,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       setState(() {
         snapshot = widget.storage.snapshot;
         error = null;
+        tab = 0;
       });
     }
   }
@@ -128,8 +148,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }),
       );
     }
+    if (tab == 1) {
+      return UsagePage(storage: widget.storage, navigation: navigation());
+    }
     final providers = snapshot?.providers ?? [];
     return Scaffold(
+      bottomNavigationBar: navigation(),
       appBar: AppBar(
         title: Text(
           snapshot == null ? '尚未刷新' : '更新于 ${formatTime(snapshot!.updatedAt)}',
@@ -154,7 +178,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               style: TextStyle(fontSize: 29, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
-            const Text('按供应商查看 · 多账号取最低剩余'),
+            const Text('有效账号最低剩余 · 异常账号独立显示'),
             const SizedBox(height: 28),
             if (busy)
               const Padding(
@@ -180,6 +204,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
     );
   }
+
+  Widget navigation() => NavigationBar(
+    selectedIndex: tab,
+    onDestinationSelected: (value) async {
+      if (busy) return;
+      if (value == 2) {
+        await settings();
+        return;
+      }
+      setState(() => tab = value);
+    },
+    destinations: const [
+      NavigationDestination(icon: Icon(Icons.donut_large_rounded), label: '额度'),
+      NavigationDestination(icon: Icon(Icons.bar_chart_rounded), label: '用量'),
+      NavigationDestination(icon: Icon(Icons.tune_rounded), label: '设置'),
+    ],
+  );
 }
 
 class SettingsPage extends StatefulWidget {
@@ -194,12 +235,14 @@ class _SettingsPageState extends State<SettingsPage> {
   final server = TextEditingController(), key = TextEditingController();
   final port = TextEditingController(text: '8317'),
       address = TextEditingController();
+  String backend = 'keeper';
   bool hide = true, busy = false, loading = true;
   String? error;
   @override
   void initState() {
     super.initState();
     final saved = widget.storage.settings;
+    backend = saved?.backend ?? 'keeper';
     server.text = saved?.server ?? '';
     port.text = '${saved?.port ?? 8317}';
     address.text = saved?.fullAddress ?? '';
@@ -246,6 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
         server: server.text.trim(),
         port: int.tryParse(port.text.trim()) ?? 0,
         fullAddress: address.text.trim(),
+        backend: backend,
       );
       final snapshot = await ManagementApi(client).refresh(value, key.text);
       await widget.storage.saveConnection(value, key.text);
@@ -297,11 +341,12 @@ class _SettingsPageState extends State<SettingsPage> {
     child: Scaffold(
       appBar: AppBar(
         title: const Text('连接服务器'),
-        actions: const [
+        actions: [
           HelpButton(
             title: '连接服务器',
-            text:
-                '服务器填写 IP 或主机名。管理密钥是 secret-key 或 MANAGEMENT_PASSWORD，保存在本机系统安全存储。\n\n默认端口为 8317；完整地址填写后优先使用。建议通过 Tailscale 或家庭 VPN 连接。',
+            text: backend == 'keeper'
+                ? '填写 Keeper 完整 HTTPS 地址，保留 /keeper 等部署路径。使用 Keeper 管理员密码，不是 CLIProxyAPI 管理密钥。密码仅保存在本机系统安全存储。'
+                : '服务器填写 IP 或主机名。管理密钥是 secret-key 或 MANAGEMENT_PASSWORD，保存在本机系统安全存储。\n\n默认端口为 8317；完整地址填写后优先使用。建议通过 Tailscale 或家庭 VPN 连接。',
           ),
         ],
       ),
@@ -311,15 +356,43 @@ class _SettingsPageState extends State<SettingsPage> {
           child: ListView(
             padding: const EdgeInsets.all(28),
             children: [
-              TextField(
-                controller: server,
-                enabled: !busy && !loading,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: '服务器',
-                  hintText: '100.64.0.10 或 proxy.home',
-                ),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'keeper', label: Text('Keeper')),
+                  ButtonSegment(value: 'cpa', label: Text('CLIProxyAPI')),
+                ],
+                selected: {backend},
+                onSelectionChanged: busy || loading
+                    ? null
+                    : (values) => setState(() {
+                        backend = values.first;
+                        key.clear();
+                      }),
               ),
+              const SizedBox(height: 22),
+              if (backend == 'keeper')
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 22),
+                  child: TextField(
+                    controller: address,
+                    enabled: !busy && !loading,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Keeper 完整地址',
+                      hintText: 'https://keeper.example.com/keeper',
+                    ),
+                  ),
+                ),
+              if (backend == 'cpa')
+                TextField(
+                  controller: server,
+                  enabled: !busy && !loading,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: '服务器',
+                    hintText: '100.64.0.10 或 proxy.home',
+                  ),
+                ),
               const SizedBox(height: 22),
               TextField(
                 controller: key,
@@ -328,7 +401,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 autocorrect: false,
                 enableSuggestions: false,
                 decoration: InputDecoration(
-                  labelText: '管理密钥',
+                  labelText: backend == 'keeper' ? 'Keeper 管理员密码' : '管理密钥',
                   suffixIcon: IconButton(
                     tooltip: hide ? '显示密钥' : '隐藏密钥',
                     onPressed: () => setState(() => hide = !hide),
@@ -356,35 +429,42 @@ class _SettingsPageState extends State<SettingsPage> {
                     : const Text('保存并连接'),
               ),
               const SizedBox(height: 20),
-              ExpansionTile(
-                title: const Text('更多'),
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  TextField(
-                    controller: port,
-                    enabled: !busy && !loading,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '端口'),
-                  ),
-                  const SizedBox(height: 22),
-                  TextField(
-                    controller: address,
-                    enabled: !busy && !loading,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: '完整地址（可选）',
-                      hintText: 'https://cpa.example.com',
+              if (backend == 'cpa')
+                ExpansionTile(
+                  title: const Text('更多'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.symmetric(vertical: 12),
+                  children: [
+                    TextField(
+                      controller: port,
+                      enabled: !busy && !loading,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: '端口'),
                     ),
-                  ),
-                  if (widget.storage.settings != null)
-                    TextButton.icon(
-                      onPressed: busy || loading ? null : clear,
-                      icon: const Icon(Icons.link_off),
-                      label: const Text('清除这台服务器'),
+                    const SizedBox(height: 22),
+                    TextField(
+                      controller: address,
+                      enabled: !busy && !loading,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: '完整地址（可选）',
+                        hintText: 'https://cpa.example.com',
+                      ),
                     ),
-                ],
-              ),
+                    if (widget.storage.settings != null)
+                      TextButton.icon(
+                        onPressed: busy || loading ? null : clear,
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('清除这台服务器'),
+                      ),
+                  ],
+                ),
+              if (backend == 'keeper' && widget.storage.settings != null)
+                TextButton.icon(
+                  onPressed: busy || loading ? null : clear,
+                  icon: const Icon(Icons.link_off),
+                  label: const Text('清除这台服务器'),
+                ),
               if (Platform.isAndroid)
                 NotificationSettingsPanel(storage: widget.storage),
               if (Platform.isAndroid) const UpdateSettingsPanel(),
@@ -446,7 +526,7 @@ class ProviderCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${provider.accounts.length} 个账号',
+                          '${provider.availableCount}/${provider.accounts.length} 个账号可用',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ],
