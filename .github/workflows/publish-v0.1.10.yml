@@ -1,0 +1,62 @@
+name: Publish verified v0.1.10
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v0.1.10.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: wkddkw/cliproxy-quota
+      VERIFIED_RUN: '38030832151'
+      VERIFIED_SHA: 28e2aff9e8527b2951a5821b886825ebe6ce5584
+    steps:
+      - name: Verify successful source build
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/actions/runs/$VERIFIED_RUN" > run.json
+          jq -e --arg sha "$VERIFIED_SHA" '.head_sha == $sha and .conclusion == "success" and .event == "push"' run.json
+          gh run download "$VERIFIED_RUN" --repo "$GH_REPO" --name cliproxy-quota-android --dir new
+          gh release download v0.1.9 --repo "$GH_REPO" --pattern cliproxy-quota-v0.1.9.apk --dir previous
+      - name: Verify Android update compatibility
+        run: |
+          set -euo pipefail
+          set -x
+          build_tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$build_tools/apksigner" verify --print-certs new/app-release.apk | tee new-signature.txt
+          "$build_tools/apksigner" verify --print-certs previous/cliproxy-quota-v0.1.9.apk | tee old-signature.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' new-signature.txt | sort -u > new-cert.txt
+          test -s new-cert.txt
+          sed -n 's/^.*certificate SHA-256 digest: //p' old-signature.txt | sort -u > old-cert.txt
+          test -s old-cert.txt
+          diff -u old-cert.txt new-cert.txt
+          "$build_tools/aapt" dump badging new/app-release.apk | tee badging.txt
+          grep -E "^package: name='com.wkddkw.cliproxy_quota' versionCode='11' versionName='0.1.10'" badging.txt
+          cp new/app-release.apk cliproxy-quota-v0.1.10.apk
+          sha256sum cliproxy-quota-v0.1.10.apk
+      - name: Publish update asset after validation
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'NOTES'
+          统一服务器配置、重置权益与用量可读性更新。
+          - 默认只填一次 IP、协议和端口，自动使用 CPA 根地址和 /keeper；支持粘贴管理页面网址，独立部署放在高级设置。两边凭据独立保存，旧连接保留。
+          - Keeper 的 GPT/Codex 和 Claude 账号详情可查看重置卡/权益与有效期，明确确认后才消耗一次。未知结果不自动重试；定时刷新不会消耗重置卡。
+          - Token 统一显示 K/M/B，最多两位小数；详情保留精确值。显示缓存读取、缓存写入、推理 Token。
+          - 新增每日统计，并可查看选定日期每个 API key 别名的用量；多人共用一个 key 仍无法拆分。
+          - 修复部分模型未计价时整笔金额显示横杠的问题：已有金额保留，并注明“部分”，不冒充完整账单。
+
+          验证：93 项 Flutter 测试、静态检查、Android 原生测试、Android/iOS 构建与 Android 35 后台 worker/通知检查。发布前核对 APK 包名、版本及与 v0.1.9 签名一致。
+          没有对真实账号执行重置；实际 Keeper 连接与厂商真机仍需验证。Android 后台调度不保证严格准点。
+          在应用设置 → 应用更新 → 检查更新中升级。
+          构建：https://github.com/wkddkw/cliproxy-quota/actions/runs/38030832151
+          NOTES
+          gh release create v0.1.10 cliproxy-quota-v0.1.10.apk --repo "$GH_REPO" --target "$VERIFIED_SHA" --title "v0.1.10 · Keeper 额度与用量" --notes-file notes.md --draft --prerelease
+          gh release edit v0.1.10 --repo "$GH_REPO" --draft=false
