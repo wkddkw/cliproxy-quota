@@ -178,4 +178,51 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(quotaChannel, null);
   });
+  testWidgets(
+    'ready updates keep check and cleanup; installed version is reread on resume',
+    (tester) async {
+      var installed = '0.1.9';
+      var ready = true;
+      var clears = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(quotaChannel, (call) async {
+            switch (call.method) {
+              case 'appVersion':
+                return {'version': installed};
+              case 'updateStatus':
+                return ready
+                    ? {
+                        'state': 'ready',
+                        'version': '0.1.10',
+                        'canInstall': true,
+                      }
+                    : {'state': 'idle'};
+              case 'cancelUpdate':
+                clears++;
+                ready = false;
+                return null;
+            }
+            return null;
+          });
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: UpdateSettingsPanel())),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('安装更新'), findsOneWidget);
+      expect(find.text('检查更新'), findsOneWidget);
+      expect(find.text('清理下载包'), findsOneWidget);
+      expect(find.textContaining('已下载 v0.1.10'), findsOneWidget);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      installed = '0.1.10';
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(clears, 1);
+      expect(find.text('安装更新'), findsNothing);
+      expect(find.text('检查更新'), findsOneWidget);
+      expect(find.text('应用更新 · v0.1.10'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(quotaChannel, null);
+    },
+  );
 }

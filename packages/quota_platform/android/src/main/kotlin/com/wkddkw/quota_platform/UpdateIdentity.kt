@@ -5,6 +5,17 @@ import java.net.URI
 data class UpdateIdentity(val packageName: String, val code: Long, val version: String, val signers: Set<String>)
 
 object UpdatePolicy {
+    fun installedOrOlder(target: String, installed: String): Boolean {
+        fun parts(value: String): List<Long>? {
+            if (!Regex("[0-9]+\\.[0-9]+\\.[0-9]+").matches(value)) return null
+            return value.split('.').map { it.toLongOrNull() ?: return null }
+        }
+        val desired = parts(target) ?: return false
+        val current = parts(installed) ?: return false
+        for (i in 0..2) { if (desired[i] != current[i]) return desired[i] < current[i] }
+        return true
+    }
+
     fun validUrl(url: String, version: String): Boolean {
         if (!Regex("[0-9]+\\.[0-9]+\\.[0-9]+").matches(version)) return false
         return try {

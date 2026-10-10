@@ -21,4 +21,10 @@ class UpdatePolicyTest {
         assertNotNull(UpdatePolicy.error(candidate.copy(code = 7), installed, "0.1.8"))
         assertNotNull(UpdatePolicy.error(candidate, installed, "0.1.9"))
     }
+    @Test fun completedAndOlderDownloadsAreDiscardedNumerically() {
+        assertTrue(UpdatePolicy.installedOrOlder("0.1.9", "0.1.9"))
+        assertTrue(UpdatePolicy.installedOrOlder("0.1.9", "0.1.10"))
+        assertFalse(UpdatePolicy.installedOrOlder("0.1.10", "0.1.9"))
+        assertFalse(UpdatePolicy.installedOrOlder("invalid", "0.1.9"))
+    }
 }

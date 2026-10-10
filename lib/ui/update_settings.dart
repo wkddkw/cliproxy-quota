@@ -85,11 +85,27 @@ class _UpdateSettingsPanelState extends State<UpdateSettingsPanel>
     if (refreshing || !mounted) return;
     refreshing = true;
     try {
-      final state = await quotaChannel.invokeMapMethod<String, dynamic>(
+      final info = await quotaChannel.invokeMapMethod<String, dynamic>(
+        'appVersion',
+      );
+      var state = await quotaChannel.invokeMapMethod<String, dynamic>(
         'updateStatus',
       );
+      final installed = AppVersion.parse('${info?['version'] ?? version}');
+      final pending = AppVersion.parse('${state?['version'] ?? ''}');
+      if (installed != null &&
+          pending != null &&
+          pending.compareTo(installed) <= 0) {
+        await quotaChannel.invokeMethod<void>('cancelUpdate');
+        state = {'state': 'idle'};
+        autoInstall = false;
+        awaitingPermission = false;
+      }
       if (!mounted) return;
-      setState(() => download = state ?? {});
+      setState(() {
+        version = '${info?['version'] ?? version}';
+        download = state ?? {};
+      });
       if (download['state'] == 'running' || download['state'] == 'paused') {
         poll ??= Timer.periodic(const Duration(seconds: 1), (_) => refresh());
       } else {
@@ -113,6 +129,7 @@ class _UpdateSettingsPanelState extends State<UpdateSettingsPanel>
   Future<void> check() async {
     setState(() => busy = true);
     try {
+      await refresh();
       latest = await repository.check(version);
       if (!mounted) return;
       if (latest == null) {
@@ -173,6 +190,7 @@ class _UpdateSettingsPanelState extends State<UpdateSettingsPanel>
   Future<void> cancel() async {
     try {
       autoInstall = false;
+      awaitingPermission = false;
       await quotaChannel.invokeMethod<void>('cancelUpdate');
       await refresh();
     } catch (e) {
@@ -222,21 +240,25 @@ class _UpdateSettingsPanelState extends State<UpdateSettingsPanel>
               LinearProgressIndicator(value: progress >= 0 ? progress : null),
               TextButton(onPressed: cancel, child: const Text('取消下载')),
             ] else ...[
-              if (download['state'] == 'failed') const Text('更新未完成，请重新检查或下载'),
-              FilledButton.tonal(
-                onPressed: busy || version.isEmpty
-                    ? null
-                    : ready
-                    ? install
-                    : check,
-                child: Text(
-                  busy
-                      ? '请稍候…'
-                      : ready
-                      ? '安装更新'
-                      : '检查更新',
+              if (ready)
+                Text('已下载 v${download['version'] ?? '未知'} · 当前 v$version'),
+              if (download['state'] == 'failed')
+                Text('${download['error'] ?? '更新未完成，请重新检查或下载'}'),
+              if (ready)
+                FilledButton.tonal(
+                  onPressed: busy ? null : install,
+                  child: Text(busy ? '请稍候…' : '安装更新'),
                 ),
+              TextButton(
+                onPressed: busy || version.isEmpty ? null : check,
+                child: const Text('检查更新'),
               ),
+              if (ready || download['state'] == 'failed')
+                TextButton(
+                  onPressed: busy ? null : cancel,
+                  child: const Text('清理下载包'),
+                ),
+              if (ready) const Text('打开系统安装页不代表安装成功；完成系统确认后会重新核对当前版本。'),
             ],
           ],
         ),

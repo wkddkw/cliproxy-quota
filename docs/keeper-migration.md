@@ -91,3 +91,15 @@ details. The daily dimension aggregates server-calendar buckets; opening a day
 queries custom/day start=end for both overview and per-key composition. Partial
 positive cost remains visible with a partial marker, consistent with Keeper's
 heatmap; unknown and unpriced amounts are not presented as free usage.
+
+## v0.1.11 interaction correction
+
+The user-facing daily dimension and calendar drilldown have been removed. The
+selected Today/7 days/30 days range drives the overall total and all user/model/
+account composition totals together. No secondary date filter changes that scope.
+
+The updater retains Check and Clear Download actions even when an APK is ready.
+It rereads the installed version after returning from the installer, discards
+already-installed/older cached targets, preserves validation failures instead of
+returning to Ready, and uses a unique APK filename per download. Opening the
+system installer is not treated as installation success.

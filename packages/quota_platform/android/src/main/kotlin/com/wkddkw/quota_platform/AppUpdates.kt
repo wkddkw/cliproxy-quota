@@ -23,7 +23,10 @@ class AppUpdates(private val context: Context) {
         return UpdateIdentity(info.packageName, if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong(), info.versionName.orEmpty(), signatures?.map { sha(it.toByteArray()) }?.toSet() ?: emptySet())
     }
     private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
-    private fun file() = File(context.getExternalFilesDir(null) ?: throw IllegalStateException("下载存储不可用"), "updates/update.apk")
+    private fun file(name: String = prefs.getString("fileName", "update.apk").orEmpty()): File {
+        require(Regex("update(?:-[0-9.]+-[0-9]+)?\\.apk").matches(name)) { "下载文件记录无效，请清理下载包" }
+        return File(context.getExternalFilesDir(null) ?: throw IllegalStateException("下载存储不可用"), "updates/$name")
+    }
     fun version(): Map<String, Any> = identity(installed()).let { mapOf("version" to it.version, "code" to it.code) }
     fun start(args: Map<*, *>): Long {
         val url = args["url"] as String
@@ -34,14 +37,15 @@ class AppUpdates(private val context: Context) {
         val existing = status()
         if (existing["state"] in listOf("running", "paused")) return prefs.getLong("id", -1)
         cancel()
-        val apk = file()
+        val fileName = "update-$version-${System.currentTimeMillis()}.apk"
+        val apk = file(fileName)
         require(apk.parentFile!!.mkdirs() || apk.parentFile!!.isDirectory) { "无法创建下载目录" }
         val request = DownloadManager.Request(Uri.parse(url)).setTitle("CLIProxy 更新 v$version")
             .setMimeType("application/vnd.android.package-archive")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             .setDestinationUri(Uri.fromFile(apk))
         val id = downloads.enqueue(request)
-        prefs.edit().putLong("id", id).putString("version", version).putString("digest", digest).commit()
+        prefs.edit().putLong("id", id).putString("version", version).putString("digest", digest).putString("fileName", fileName).remove("validationError").commit()
         return id
     }
     fun cancel() {
@@ -73,8 +77,10 @@ class AppUpdates(private val context: Context) {
         val id = prefs.getLong("id", -1)
         if (id < 0) return mapOf("state" to "idle")
         val version = prefs.getString("version", "").orEmpty()
-        if (version == installed().versionName) { cancel(); return mapOf("state" to "idle") }
+        if (UpdatePolicy.installedOrOlder(version, installed().versionName.orEmpty())) { cancel(); return mapOf("state" to "idle") }
         val result = mutableMapOf<String, Any>("version" to version, "canInstall" to (Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()))
+        val validationError = prefs.getString("validationError", null)
+        if (validationError != null) return result + mapOf("state" to "failed", "error" to validationError)
         downloads.query(DownloadManager.Query().setFilterById(id)).use { cursor ->
             if (cursor == null || !cursor.moveToFirst()) return result + mapOf("state" to "failed", "error" to "下载任务已移除，请重试")
             val state = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
@@ -93,7 +99,10 @@ class AppUpdates(private val context: Context) {
     }
     fun installIntent(): Pair<String, Intent> {
         require(status()["state"] == "ready") { "更新包尚未下载完成，请重新下载或等待" }
-        val apk = verify()
+        val apk = try { verify() } catch (error: Exception) {
+            prefs.edit().putString("validationError", error.message ?: "更新包校验失败，请清理后重新下载").commit()
+            throw error
+        }
         if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
             return "permission" to Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
         }

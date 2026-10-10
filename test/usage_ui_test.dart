@@ -92,9 +92,13 @@ void main() {
     expect(find.text('Grok'), findsOneWidget);
     expect(find.text('估算费用 \$0.300'), findsOneWidget);
     expect(find.textContaining('4.2K Tokens'), findsOneWidget);
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<String>));
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
+    expect(find.text('每天'), findsNothing);
     await tester.tap(find.text('用户 / API Key').last);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
     await tester.pumpAndSettle();
     expect(find.text('Team A'), findsOneWidget);
     expect(find.text('\$12.340（部分）'), findsOneWidget);

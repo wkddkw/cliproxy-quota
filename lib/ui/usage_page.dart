@@ -25,7 +25,6 @@ class _UsagePageState extends State<UsagePage> {
   late final http.Client client;
   int days = 1, generation = 0;
   String dimension = 'model_composition';
-  String? selectedDay;
   Json? data;
   String? error;
   bool busy = false;
@@ -54,7 +53,7 @@ class _UsagePageState extends State<UsagePage> {
     try {
       final result = await KeeperApi(
         client,
-      ).usage(settings, await widget.storage.readKey(), days, day: selectedDay);
+      ).usage(settings, await widget.storage.readKey(), days);
       if (mounted && generation == current) setState(() => data = result);
     } catch (e) {
       if (mounted && generation == current) {
@@ -116,9 +115,7 @@ class _UsagePageState extends State<UsagePage> {
         ? overview['summary'] as Map
         : {};
     final analysis = data?['analysis'];
-    final rows = dimension == 'daily'
-        ? dailyUsage(analysis is Map ? analysis['token_usage'] : null)
-        : analysis is Map && analysis[dimension] is List
+    final rows = analysis is Map && analysis[dimension] is List
         ? (analysis[dimension] as List).whereType<Map>().toList()
         : <Map>[];
     return Scaffold(
@@ -149,19 +146,10 @@ class _UsagePageState extends State<UsagePage> {
               onSelectionChanged: (v) {
                 setState(() {
                   days = v.first;
-                  selectedDay = null;
                 });
                 load();
               },
             ),
-            if (selectedDay != null)
-              InputChip(
-                label: Text('$selectedDay · 每人用量'),
-                onDeleted: () {
-                  setState(() => selectedDay = null);
-                  load();
-                },
-              ),
             if (analysis is Map && analysis['timezone'] != null)
               Text('统计时区：${analysis['timezone']}'),
             const SizedBox(height: 20),
@@ -178,6 +166,7 @@ class _UsagePageState extends State<UsagePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(days == 1 ? '今天合计' : '最近 $days 天合计'),
                       Text(
                         '${compactUsage(usage['total_requests'])} 次请求',
                         style: Theme.of(context).textTheme.titleLarge,
@@ -203,7 +192,6 @@ class _UsagePageState extends State<UsagePage> {
               initialValue: dimension,
               decoration: const InputDecoration(labelText: '统计维度'),
               items: const [
-                DropdownMenuItem(value: 'daily', child: Text('每天')),
                 DropdownMenuItem(
                   value: 'api_key_composition',
                   child: Text('用户 / API Key'),
@@ -250,17 +238,6 @@ class _UsagePageState extends State<UsagePage> {
                       Text(
                         '缓存读取：${compactUsage(rows[i]['cache_read_tokens'])} · 缓存写入：${compactUsage(rows[i]['cache_creation_tokens'])}\n推理：${compactUsage(rows[i]['reasoning_tokens'])}',
                       ),
-                      if (dimension == 'daily')
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedDay = '${rows[i]['day']}';
-                              dimension = 'api_key_composition';
-                            });
-                            load();
-                          },
-                          child: const Text('查看当天每人用量'),
-                        ),
                     ],
                   ),
                 ),
